@@ -24,7 +24,7 @@ function isPhoneInput(value: string): boolean {
 }
 
 export const LoginScreen: React.FC = () => {
-  const { signInWithPassword, enterDemoMode } = useAuth();
+  const { signInWithPassword } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -206,17 +206,6 @@ export const LoginScreen: React.FC = () => {
               )}
             </button>
           </form>
-
-          {/* Quick Demo Staff Login */}
-          <div className="w-full pt-1">
-            <button
-              type="button"
-              onClick={enterDemoMode}
-              className="w-full py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white/70 hover:text-white text-xs font-medium transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-            >
-              <span>Demo Staff Access</span>
-            </button>
-          </div>
         </div>
       </div>
 
