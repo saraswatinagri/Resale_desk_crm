@@ -42,8 +42,8 @@ export const Navbar: React.FC<NavbarProps> = ({
     currentTab === 'properties'
       ? 'from-amber-500 to-orange-500 shadow-amber-500/20'
       : currentTab === 'leads'
-      ? 'from-purple-500 to-indigo-500 shadow-purple-500/20'
-      : 'from-teal-500 to-emerald-600 shadow-teal-500/20';
+        ? 'from-purple-500 to-indigo-500 shadow-purple-500/20'
+        : 'from-teal-500 to-emerald-600 shadow-teal-500/20';
 
   const HeaderIcon = currentTab === 'properties' ? Building2 : PhoneCall;
 
@@ -109,11 +109,10 @@ export const Navbar: React.FC<NavbarProps> = ({
         <button
           type="button"
           onClick={onToggleDesk}
-          className={`inline-flex items-center justify-center gap-1.5 rounded-full min-h-[36px] px-3.5 py-1.5 font-bold text-xs transition-all shadow-sm cursor-pointer shrink-0 ${
-            activeDesk === 'resale'
+          className={`inline-flex items-center justify-center gap-1.5 rounded-full min-h-[36px] px-3.5 py-1.5 font-bold text-xs transition-all shadow-sm cursor-pointer shrink-0 ${activeDesk === 'resale'
               ? 'bg-teal-600 hover:bg-teal-700 text-white border border-teal-600'
               : 'bg-purple-600 hover:bg-purple-700 text-white border border-purple-600'
-          }`}
+            }`}
           title={activeDesk === 'resale' ? 'Switch to Saraswati Nagri Plot Sales' : 'Open Nagpur Properties Resale Desk'}
         >
           {activeDesk === 'resale' ? (
