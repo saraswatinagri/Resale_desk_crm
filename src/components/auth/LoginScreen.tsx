@@ -82,8 +82,15 @@ export const LoginScreen: React.FC = () => {
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-rose-950 flex flex-col items-center justify-center p-4">
       {/* Header — Exact Saraswati Nagri CRM */}
       <div className="flex flex-col items-center pb-6 text-center">
-        <div className="mb-4 h-24 w-24 sm:h-28 sm:w-28 rounded-3xl bg-gradient-to-tr from-rose-600 to-amber-500 flex items-center justify-center shadow-2xl ring-1 ring-white/20 shrink-0">
-          <Building2 className="h-12 w-12 sm:h-14 sm:w-14 text-white" />
+        <div className="relative mb-4 h-24 w-24 sm:h-28 sm:w-28 overflow-hidden rounded-3xl shadow-2xl ring-1 ring-white/20 shrink-0 bg-gradient-to-tr from-rose-600 to-amber-500 flex items-center justify-center">
+          <img
+            src="/brand/logo.png"
+            alt="Saraswati Nagri"
+            className="h-full w-full object-cover"
+            onError={(e) => {
+              (e.target as HTMLElement).style.display = 'none';
+            }}
+          />
         </div>
         <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight text-center max-w-xs">
           Saraswati Nagri
