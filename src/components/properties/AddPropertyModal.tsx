@@ -16,7 +16,17 @@ import {
   ChevronLeft,
   Sparkles,
   Layers,
-  Phone
+  Phone,
+  Upload,
+  Trash2,
+  Star,
+  FolderUp,
+  Link as LinkIcon,
+  Tag as TagIcon,
+  Camera,
+  Check,
+  Loader2,
+  FileText
 } from 'lucide-react';
 import { 
   ResaleProperty, 
@@ -33,6 +43,11 @@ import {
   COMMON_AMENITIES 
 } from '../../data/constants';
 import { formatIndianCurrency } from '../../utils/formatters';
+import { 
+  OptimizedImage, 
+  PHOTO_LABELS, 
+  processMultipleImageFiles 
+} from '../../utils/imageUpload';
 
 interface AddPropertyModalProps {
   isOpen: boolean;
@@ -116,9 +131,21 @@ export const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
     '24 Hours Water (Borewell + NMC)'
   ]);
 
-  // Step 7: Media
+  // Step 7: Media & Property Photos (Upload from Device / Drive + URLs + Presets)
   const [coverImageUrl, setCoverImageUrl] = useState(SAMPLE_PRESET_IMAGES[0].url);
-  const [additionalImages, setAdditionalImages] = useState<string[]>([]);
+  const [galleryImages, setGalleryImages] = useState<OptimizedImage[]>([
+    {
+      id: 'default-cover',
+      url: SAMPLE_PRESET_IMAGES[0].url,
+      name: 'Modern Apartment (Sample)',
+      sizeKb: 140,
+      label: 'Building Elevation'
+    }
+  ]);
+  const [mediaSourceTab, setMediaSourceTab] = useState<'upload' | 'url' | 'presets'>('upload');
+  const [pastedUrl, setPastedUrl] = useState('');
+  const [isProcessingFiles, setIsProcessingFiles] = useState(false);
+  const [uploadProgressText, setUploadProgressText] = useState('');
 
   // Step 8: Owner & Description
   const [ownerName, setOwnerName] = useState('');
@@ -140,6 +167,83 @@ export const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
     } else {
       setSelectedAmenities([...selectedAmenities, amenity]);
     }
+  };
+
+  // Image Upload Handlers
+  const handleDeviceFilesUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setIsProcessingFiles(true);
+    setUploadProgressText(`Optimizing ${files.length} property photos...`);
+
+    try {
+      const optimizedImages = await processMultipleImageFiles(files, (done, total) => {
+        setUploadProgressText(`Optimizing photo ${done} of ${total}...`);
+      });
+
+      if (optimizedImages.length > 0) {
+        // If current gallery only has the default preset, replace it with the first real photo uploaded
+        const hasOnlyDefault = galleryImages.length === 1 && galleryImages[0].id === 'default-cover';
+        if (hasOnlyDefault) {
+          setCoverImageUrl(optimizedImages[0].url);
+          setGalleryImages(optimizedImages);
+        } else {
+          setGalleryImages(prev => [...prev, ...optimizedImages]);
+        }
+      }
+    } catch (err) {
+      setErrorMsg('Failed to process one or more images from device.');
+    } finally {
+      setIsProcessingFiles(false);
+      setUploadProgressText('');
+      e.target.value = ''; // Reset input to allow re-uploading same file
+    }
+  };
+
+  const handleAddPastedUrl = () => {
+    if (!pastedUrl.trim()) return;
+    const newImg: OptimizedImage = {
+      id: `url-${Date.now()}`,
+      url: pastedUrl.trim(),
+      name: 'External Image Link',
+      sizeKb: 0,
+      label: 'General View'
+    };
+    setGalleryImages(prev => [...prev, newImg]);
+    if (!coverImageUrl) setCoverImageUrl(newImg.url);
+    setPastedUrl('');
+  };
+
+  const handleSelectPreset = (url: string, label: string) => {
+    const newImg: OptimizedImage = {
+      id: `preset-${Date.now()}`,
+      url,
+      name: label,
+      sizeKb: 120,
+      label: 'Building Elevation'
+    };
+    setCoverImageUrl(url);
+    setGalleryImages(prev => [newImg, ...prev.filter(x => x.id !== 'default-cover')]);
+  };
+
+  const handleSetCover = (url: string) => {
+    setCoverImageUrl(url);
+  };
+
+  const handleRemoveImage = (id: string) => {
+    const target = galleryImages.find(img => img.id === id);
+    const updated = galleryImages.filter(img => img.id !== id);
+    setGalleryImages(updated);
+    if (target && target.url === coverImageUrl && updated.length > 0) {
+      setCoverImageUrl(updated[0].url);
+    }
+  };
+
+  const handleUpdateImageLabel = (id: string, label: string) => {
+    setGalleryImages(prev =>
+      prev.map(img => (img.id === id ? { ...img, label } : img))
+    );
   };
 
   const handleNext = () => {
@@ -225,7 +329,13 @@ export const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
           clearTitle ? 'Clear title with verified documents' : 'Paperwork in process',
           loanEligible ? 'Bank loan available from major nationalized banks' : ''
         ].filter(Boolean),
-        images: [coverImageUrl, ...additionalImages].filter(Boolean),
+        images: (() => {
+          const combined = [
+            coverImageUrl,
+            ...galleryImages.map(img => img.url).filter(u => u !== coverImageUrl)
+          ].filter(Boolean);
+          return combined.length > 0 ? combined : [SAMPLE_PRESET_IMAGES[0].url];
+        })(),
         description: description.trim() || `${finalTitle} located at ${finalAddress}. Features ${finalAreaSqFt} sq.ft, ${facing} facing, verified title.`,
         owner: {
           name: finalOwnerName,
@@ -706,45 +816,261 @@ export const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
             </div>
           )}
 
-          {/* STEP 7: MEDIA */}
+          {/* STEP 7: MEDIA & PROPERTY PHOTOS */}
           {step === 7 && (
             <div className="space-y-4 animate-in fade-in">
-              <div>
-                <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wide mb-1 block">
-                  Quick Photo Presets:
-                </span>
-                <div className="flex items-center gap-2 flex-wrap">
-                  {SAMPLE_PRESET_IMAGES.map(preset => (
-                    <button
-                      type="button"
-                      key={preset.label}
-                      onClick={() => setCoverImageUrl(preset.url)}
-                      className="text-xs font-semibold px-2.5 py-1 rounded-lg border border-slate-200 hover:bg-slate-50"
-                    >
-                      {preset.label}
-                    </button>
-                  ))}
-                </div>
+              {/* Media Option Segmented Tabs */}
+              <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl border border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => setMediaSourceTab('upload')}
+                  className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                    mediaSourceTab === 'upload'
+                      ? 'bg-white text-slate-900 shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <FolderUp className="w-3.5 h-3.5 text-rose-500" />
+                  <span>Upload from Device / Drive</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setMediaSourceTab('url')}
+                  className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                    mediaSourceTab === 'url'
+                      ? 'bg-white text-slate-900 shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <LinkIcon className="w-3.5 h-3.5 text-teal-600" />
+                  <span>Image URL / Cloud Link</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setMediaSourceTab('presets')}
+                  className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                    mediaSourceTab === 'presets'
+                      ? 'bg-white text-slate-900 shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                  <span>Quick Presets</span>
+                </button>
               </div>
 
-              <div>
-                <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wide mb-1 block">
-                  Cover Photo URL (Optional)
-                </label>
-                <input
-                  type="url"
-                  placeholder="https://images.unsplash.com/..."
-                  value={coverImageUrl}
-                  onChange={(e) => setCoverImageUrl(e.target.value)}
-                  className="w-full p-2.5 text-sm font-medium border border-slate-200 rounded-lg font-mono"
-                />
-              </div>
+              {/* TAB 1: DEVICE / DRIVE UPLOAD DROPZONE */}
+              {mediaSourceTab === 'upload' && (
+                <div className="space-y-3">
+                  <div className="relative border-2 border-dashed border-slate-300 hover:border-rose-400 bg-slate-50/70 hover:bg-rose-50/20 rounded-2xl p-6 text-center transition-all flex flex-col items-center justify-center gap-2 group">
+                    <div className="w-12 h-12 rounded-2xl bg-rose-100/70 text-rose-600 flex items-center justify-center group-hover:scale-105 transition-transform">
+                      <FolderUp className="w-6 h-6" />
+                    </div>
 
-              {coverImageUrl && (
-                <div className="h-40 w-full max-w-md rounded-2xl overflow-hidden border border-slate-200 shadow-sm">
-                  <img src={coverImageUrl} alt="" className="h-full w-full object-cover" />
+                    <div>
+                      <p className="text-sm font-bold text-slate-800">
+                        Drop property photos here or click to browse
+                      </p>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        Upload elevation, living hall, bedrooms, kitchen, or NMRDA layout sheet
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2 mt-2 flex-wrap justify-center">
+                      <input
+                        type="file"
+                        multiple
+                        accept="image/*"
+                        id="property-device-upload"
+                        onChange={handleDeviceFilesUpload}
+                        className="hidden"
+                      />
+                      <label
+                        htmlFor="property-device-upload"
+                        className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl text-xs cursor-pointer inline-flex items-center gap-1.5 shadow-sm transition-all"
+                      >
+                        <Upload className="w-3.5 h-3.5 text-rose-400" />
+                        <span>Choose from Device / Drive</span>
+                      </label>
+
+                      {/* Mobile camera snap option */}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        id="property-camera-upload"
+                        onChange={handleDeviceFilesUpload}
+                        className="hidden"
+                      />
+                      <label
+                        htmlFor="property-camera-upload"
+                        className="px-3 py-2 bg-white hover:bg-slate-50 text-slate-700 font-bold rounded-xl text-xs cursor-pointer inline-flex items-center gap-1.5 border border-slate-200 shadow-sm transition-all"
+                      >
+                        <Camera className="w-3.5 h-3.5 text-slate-500" />
+                        <span className="hidden sm:inline">Camera Capture</span>
+                      </label>
+                    </div>
+
+                    <span className="text-[10px] text-slate-400 mt-1">
+                      Supports JPG, PNG, WEBP · Auto-compressed for rapid WhatsApp & brochure loading
+                    </span>
+                  </div>
+
+                  {isProcessingFiles && (
+                    <div className="p-3 bg-teal-50 border border-teal-200 text-teal-800 rounded-xl flex items-center gap-2 text-xs font-semibold animate-pulse">
+                      <Loader2 className="w-4 h-4 animate-spin text-teal-600 shrink-0" />
+                      <span>{uploadProgressText || 'Compressing & preparing photos...'}</span>
+                    </div>
+                  )}
                 </div>
               )}
+
+              {/* TAB 2: URL / CLOUD LINK */}
+              {mediaSourceTab === 'url' && (
+                <div className="space-y-3 p-4 bg-slate-50 rounded-2xl border border-slate-200">
+                  <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wide block">
+                    Paste Image Link or Cloud URL (Google Drive / Dropbox / Web)
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="url"
+                      placeholder="https://images.unsplash.com/... or Google Drive direct link"
+                      value={pastedUrl}
+                      onChange={(e) => setPastedUrl(e.target.value)}
+                      className="flex-1 p-2.5 text-xs font-medium border border-slate-200 rounded-xl font-mono bg-white focus:outline-none focus:ring-2 focus:ring-teal-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddPastedUrl}
+                      disabled={!pastedUrl.trim()}
+                      className="px-4 py-2.5 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white font-bold text-xs rounded-xl transition-all cursor-pointer shrink-0"
+                    >
+                      Add Photo
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 3: QUICK PRESETS */}
+              {mediaSourceTab === 'presets' && (
+                <div className="space-y-2">
+                  <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wide block">
+                    Select Curated Nagpur Real Estate Representative Preset:
+                  </span>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {SAMPLE_PRESET_IMAGES.map((preset) => (
+                      <button
+                        type="button"
+                        key={preset.label}
+                        onClick={() => handleSelectPreset(preset.url, preset.label)}
+                        className={`p-2 rounded-xl border text-left transition-all cursor-pointer flex flex-col gap-1.5 ${
+                          coverImageUrl === preset.url
+                            ? 'border-amber-500 bg-amber-50/50 ring-2 ring-amber-400'
+                            : 'border-slate-200 bg-white hover:bg-slate-50'
+                        }`}
+                      >
+                        <div className="h-16 w-full rounded-lg overflow-hidden bg-slate-100">
+                          <img src={preset.url} alt="" className="h-full w-full object-cover" />
+                        </div>
+                        <span className="text-[11px] font-bold text-slate-800 truncate block">
+                          {preset.label}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* GALLERY MANAGEMENT & PHOTO LIST */}
+              <div className="space-y-2.5 pt-2 border-t border-slate-100">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-black text-slate-800">
+                      Property Gallery ({galleryImages.length} {galleryImages.length === 1 ? 'photo' : 'photos'})
+                    </span>
+                    <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">
+                      Cover selected
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-slate-500">
+                    Click "Set Cover" to change listing thumbnail
+                  </span>
+                </div>
+
+                {galleryImages.length === 0 ? (
+                  <div className="p-6 text-center border border-dashed border-slate-200 rounded-2xl bg-white text-slate-400 text-xs">
+                    No photos added yet. Upload files from device or choose a preset above.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-64 overflow-y-auto p-1">
+                    {galleryImages.map((img) => {
+                      const isCover = coverImageUrl === img.url;
+                      return (
+                        <div
+                          key={img.id}
+                          className={`relative group rounded-xl border overflow-hidden bg-white shadow-sm transition-all flex flex-col ${
+                            isCover ? 'ring-2 ring-amber-500 border-amber-500' : 'border-slate-200'
+                          }`}
+                        >
+                          <div className="relative h-28 w-full bg-slate-100 overflow-hidden">
+                            <img src={img.url} alt="" className="h-full w-full object-cover" />
+
+                            {/* Cover Badge or Set-Cover button */}
+                            {isCover ? (
+                              <span className="absolute top-1.5 left-1.5 px-2 py-0.5 rounded-md text-[9px] font-black bg-amber-500 text-white shadow-md flex items-center gap-1">
+                                <Star className="w-3 h-3 fill-white" />
+                                <span>Cover</span>
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => handleSetCover(img.url)}
+                                className="absolute top-1.5 left-1.5 px-2 py-0.5 rounded-md text-[9px] font-bold bg-black/60 hover:bg-amber-600 text-white backdrop-blur-sm transition-all cursor-pointer"
+                              >
+                                Set Cover
+                              </button>
+                            )}
+
+                            {/* Delete button */}
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveImage(img.id)}
+                              title="Remove photo"
+                              className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/60 hover:bg-rose-600 text-white backdrop-blur-sm flex items-center justify-center transition-all cursor-pointer opacity-90 group-hover:opacity-100"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+
+                            {/* File size badge if present */}
+                            {img.sizeKb > 0 && (
+                              <span className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded text-[8px] font-mono bg-black/60 text-white backdrop-blur-sm">
+                                {img.sizeKb} KB
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Image Label / Category selector */}
+                          <div className="p-1.5 bg-slate-50 border-t border-slate-100">
+                            <select
+                              value={img.label || 'General View'}
+                              onChange={(e) => handleUpdateImageLabel(img.id, e.target.value)}
+                              className="w-full text-[10px] font-bold p-1 bg-white border border-slate-200 rounded-lg text-slate-700 focus:outline-none"
+                            >
+                              {PHOTO_LABELS.map((lbl) => (
+                                <option key={lbl} value={lbl}>
+                                  {lbl}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
