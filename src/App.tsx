@@ -163,10 +163,40 @@ export function App() {
         if (res.data) {
           await reloadData();
           showNotification(`Property "${res.data.title}" registered successfully!`);
-          return;
         }
       } catch (err) {
         // Handled silently in background
+      }
+
+      // 3. Also register seller lead into Saraswati Nagri CRM public.leads table so it appears across the whole CRM!
+      if (newPropertyData.owner.phone && newPropertyData.owner.phone.trim().length >= 10) {
+        try {
+          await createLeadInSupabase({
+            name: newPropertyData.owner.name || 'Property Owner',
+            phone: newPropertyData.owner.phone,
+            whatsapp: newPropertyData.owner.whatsapp || newPropertyData.owner.phone,
+            entity: 'Saraswati Nagri',
+            intent: newPropertyData.transactionType === 'rent'
+              ? 'Wants to Rent Out Their Property'
+              : 'Wants to Sell Their Property (House/Villa/Farm)',
+            propertyCategory: newPropertyData.category,
+            plotInterest: newPropertyData.category === 'flat' ? 'Flat' : newPropertyData.category === 'house_villa' ? 'House/Villa' : 'Plot',
+            bhkPreference: [newPropertyData.bhk || '3 BHK'],
+            preferredLocalities: [newPropertyData.locality],
+            budgetDisplay: newPropertyData.price,
+            budgetMin: newPropertyData.priceNumeric,
+            budgetMax: newPropertyData.priceNumeric,
+            source: 'Resale Property Listing',
+            priority: 'warm',
+            stage: 'new',
+            timeline: 'immediate',
+            assignedTo: user.fullName,
+            assignedToId: user.id,
+            notes: `Registered resale property: ${newPropertyData.title} in ${newPropertyData.locality} (${newPropertyData.price}). ${newPropertyData.description}`
+          }, user.id, profiles);
+        } catch (e) {
+          console.warn('Seller lead registration note:', e);
+        }
       }
     }
 

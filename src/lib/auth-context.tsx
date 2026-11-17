@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { supabase, isSupabaseConfigured } from './supabase';
+import { supabaseDb, supabaseAuth, isSupabaseConfigured } from './supabase';
 import type { CrmUserProfile } from '../types/crm';
 
 export interface AuthState {
@@ -34,16 +34,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isDemoMode, setIsDemoMode] = useState(false);
 
   const loadProfileAndRoster = useCallback(async (userId: string, emailFallback?: string) => {
-    if (!supabase) return;
+    if (!supabaseDb) return;
 
     try {
       const [{ data: myProfile }, { data: roster }] = await Promise.all([
-        supabase
+        supabaseDb
           .from('profiles')
           .select('id, full_name, email, phone, role, avatar, color, is_active, department')
           .eq('id', userId)
           .maybeSingle(),
-        supabase
+        supabaseDb
           .from('profiles')
           .select('id, full_name, email, phone, role, avatar, color, is_active, department')
           .eq('is_active', true)
@@ -97,7 +97,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     let mounted = true;
 
     async function init() {
-      if (!isSupabaseConfigured || !supabase) {
+      if (!isSupabaseConfigured || !supabaseAuth) {
         if (mounted) {
           setIsDemoMode(true);
           setUser(DEFAULT_ADMIN_USER);
@@ -108,7 +108,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       try {
         // 1. Check Supabase auth session
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { session } } = await supabaseAuth.auth.getSession();
         if (session?.user && mounted) {
           await loadProfileAndRoster(session.user.id, session.user.email);
           setIsDemoMode(false);
@@ -137,8 +137,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     init();
 
-    if (supabase) {
-      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    if (supabaseAuth) {
+      const { data: { subscription } } = supabaseAuth.auth.onAuthStateChange(async (_event, session) => {
         if (!mounted) return;
         if (session?.user) {
           window.localStorage.removeItem('resale_desk_demo_mode');
@@ -161,7 +161,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [loadProfileAndRoster]);
 
   const signInWithPassword = async (identifier: string, password: string) => {
-    if (!supabase) return { success: false, error: 'Database client not initialized' };
+    if (!supabaseAuth || !supabaseDb) return { success: false, error: 'Database client not initialized' };
 
     const trimmed = identifier.trim().toLowerCase();
     const rawDigits = trimmed.replace(/\D/g, '');
@@ -176,7 +176,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Check if phone number was entered: resolve to agent/staff profile email
     if (isPhone) {
       try {
-        const { data: matched } = await supabase
+        const { data: matched } = await supabaseDb
           .from('profiles')
           .select('id, email, phone, full_name')
           .or(`phone.ilike.%${phone10}%,email.ilike.%${phone10}%`)
@@ -192,15 +192,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     }
 
-    // Direct Supabase sign in
-    let { data, error } = await supabase.auth.signInWithPassword({
+    // Direct Supabase sign in via auth client
+    let { data, error } = await supabaseAuth.auth.signInWithPassword({
       email: authEmail,
       password,
     });
 
     // If initial attempt failed and was phone, retry with +91 phone credential
     if (error && isPhone) {
-      const phoneAttempt = await supabase.auth.signInWithPassword({
+      const phoneAttempt = await supabaseAuth.auth.signInWithPassword({
         phone: `+91${phone10}`,
         password,
       } as any);
@@ -243,8 +243,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     window.localStorage.removeItem('resale_desk_demo_mode');
     window.localStorage.removeItem('omcrm_user_session');
     setIsDemoMode(false);
-    if (supabase) {
-      await supabase.auth.signOut().catch(() => {});
+    if (supabaseAuth) {
+      await supabaseAuth.auth.signOut().catch(() => {});
     }
     setUser(null);
   };
@@ -255,7 +255,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         user,
         profiles,
         isLoading,
-        isLiveSupabase: Boolean(isSupabaseConfigured && supabase),
+        isLiveSupabase: Boolean(isSupabaseConfigured && supabaseDb),
         isDemoMode,
         signInWithPassword,
         enterDemoMode,
