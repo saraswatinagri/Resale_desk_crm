@@ -147,7 +147,34 @@ class StorageService {
 
     if (!lead.callLogs) lead.callLogs = [];
     lead.callLogs.unshift(newLog);
-    this.updateLead(leadId, { callLogs: lead.callLogs });
+
+    const updates: Partial<ResaleLead> = { callLogs: lead.callLogs };
+    if (log.nextFollowUpDate) {
+      updates.nextFollowUp = log.nextFollowUpDate;
+    }
+    if (log.outcome === 'Scheduled Visit') {
+      updates.stage = 'visit_scheduled';
+    } else if (log.outcome === 'Site Visit Done') {
+      updates.stage = 'visit_done';
+    } else if (
+      [
+        'Not Interested',
+        'Price Too High',
+        'Already Sold',
+        'Already Rented',
+        'Bought Elsewhere',
+        'Location Not Suitable',
+        'Budget Mismatch',
+      ].includes(log.outcome)
+    ) {
+      updates.stage = 'lost';
+    } else if (log.outcome === 'Requirement Closed') {
+      updates.stage = 'closed';
+    } else if (log.outcome === 'Interested' || log.outcome === 'Follow-up Needed') {
+      if (lead.stage === 'new') updates.stage = 'contacted';
+    }
+
+    this.updateLead(leadId, updates);
     return newLog;
   }
 

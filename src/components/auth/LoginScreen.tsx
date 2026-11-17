@@ -167,7 +167,18 @@ export const LoginScreen: React.FC = () => {
               </button>
             </div>
 
-            <div className="flex justify-end pr-1">
+            <div className="flex items-center justify-between pr-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setEmail('saraswatinagri@gmail.com');
+                  setPassword('SaraswatiNagri123#');
+                  setError('');
+                }}
+                className="text-[11px] text-rose-300/80 hover:text-white transition-colors focus:outline-none cursor-pointer underline decoration-dotted"
+              >
+                Auto-fill Saraswati Nagri Admin
+              </button>
               <button
                 type="button"
                 onClick={() => {

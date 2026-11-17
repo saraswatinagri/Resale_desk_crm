@@ -214,21 +214,13 @@ function mapLeadRow(
         feedback: asStr(item.content),
       });
     } else if (itemType === 'call' || itemType === 'note' || itemType === 'whatsapp') {
-      const outcomeRaw = asStr(item.outcome);
-      const outcome: CallLog['outcome'] =
-        outcomeRaw === 'Scheduled Visit' ||
-        outcomeRaw === 'Follow-up Needed' ||
-        outcomeRaw === 'Ringing / No Answer' ||
-        outcomeRaw === 'Budget Mismatch' ||
-        outcomeRaw === 'Not Interested'
-          ? outcomeRaw
-          : 'Interested';
+      const outcomeRaw = asStr(item.outcome, 'Interested') as CallLog['outcome'];
       callLogs.push({
         id: asStr(item.id),
         date: asStr(item.created_at, new Date().toISOString()),
         caller: actor,
         notes: asStr(item.content, outcomeRaw || 'Logged activity'),
-        outcome,
+        outcome: outcomeRaw,
       });
     }
   }
@@ -291,7 +283,7 @@ export async function fetchLeadsFromSupabase(
       'id, lead_no, name, phone, whatsapp, email, entity, property_type, plot_interest, source, purpose_of_buying, budget, budget_min, budget_max, plot_size_preference, urgency, status, assigned_to, follow_up_date, site_visit_date, last_contacted_at, interaction_count, location_preference, city, notes, score_value, score_label, score_reason, created_at, updated_at'
     )
     .order('created_at', { ascending: false })
-    .limit(500);
+    .limit(1500);
 
   if (desk === 'resale') {
     query = query.in('property_type', [...RESALE_PROPERTY_TYPES]);
@@ -444,23 +436,60 @@ export async function addCallLogInSupabase(
 ): Promise<{ error?: string }> {
   if (!supabase) return { error: 'Supabase not configured' };
 
-  const { error } = await supabase.from('lead_interactions').insert({
+  const scheduledDate = log.nextFollowUpDate
+    ? new Date(log.nextFollowUpDate).toISOString()
+    : null;
+
+  const { error: intErr } = await supabase.from('lead_interactions').insert({
     lead_id: leadId,
     type: 'call',
     content: log.notes,
     outcome: log.outcome,
+    scheduled_date: scheduledDate,
     created_by: currentUserId || null,
   });
 
-  if (error) return { error: error.message };
+  if (intErr) return { error: intErr.message };
 
-  await supabase
-    .from('leads')
-    .update({
-      last_contacted_at: new Date().toISOString(),
-      interaction_count: currentInteractionCount + 1,
-    })
-    .eq('id', leadId);
+  // Status and follow-up progression matching Saraswati Nagri CRM rules
+  const updates: Record<string, unknown> = {
+    last_contacted_at: new Date().toISOString(),
+    interaction_count: currentInteractionCount + 1,
+  };
+
+  if (scheduledDate) {
+    updates.follow_up_date = scheduledDate;
+  }
+
+  if (log.outcome === 'Scheduled Visit') {
+    updates.status = 'Site Visit Scheduled';
+    updates.stage_changed_at = new Date().toISOString();
+  } else if (log.outcome === 'Site Visit Done') {
+    updates.status = 'Site Visit Done';
+    updates.stage_changed_at = new Date().toISOString();
+  } else if (
+    [
+      'Not Interested',
+      'Price Too High',
+      'Already Sold',
+      'Already Rented',
+      'Bought Elsewhere',
+      'Location Not Suitable',
+      'Budget Mismatch',
+    ].includes(log.outcome)
+  ) {
+    updates.status = 'Not Interested';
+    updates.stage_changed_at = new Date().toISOString();
+    updates.lost_at = new Date().toISOString();
+  } else if (log.outcome === 'Requirement Closed') {
+    updates.status = 'Converted';
+    updates.stage_changed_at = new Date().toISOString();
+  } else if (log.outcome === 'Interested' || log.outcome === 'Follow-up Needed') {
+    updates.status = 'Follow-up';
+    updates.stage_changed_at = new Date().toISOString();
+  }
+
+  await supabase.from('leads').update(updates).eq('id', leadId);
 
   return {};
 }

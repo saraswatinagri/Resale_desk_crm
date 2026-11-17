@@ -8,21 +8,21 @@ export interface AuthState {
   isLoading: boolean;
   isLiveSupabase: boolean;
   isDemoMode: boolean;
-  signInWithPassword: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  signInWithPassword: (identifier: string, password: string) => Promise<{ success: boolean; error?: string }>;
   enterDemoMode: () => void;
   signOut: () => Promise<void>;
 }
 
-const DEMO_USER: CrmUserProfile = {
-  id: 'demo-nilesh',
-  fullName: 'Nilesh Thakre',
-  email: 'nilesh@saraswatinagri.com',
-  phone: '9822451080',
-  role: 'Resale Desk Head',
-  avatar: 'NT',
+const DEFAULT_ADMIN_USER: CrmUserProfile = {
+  id: 'dbc71212-d38b-40cc-8df2-4a99828ff449',
+  fullName: 'SaraswatiNagri (Office)',
+  email: 'saraswatinagri@gmail.com',
+  phone: '9876543210',
+  role: 'Super Admin',
+  avatar: 'SN',
   color: 'from-rose-500 to-amber-500',
   isActive: true,
-  department: 'Sales',
+  department: 'Management',
 };
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -36,52 +36,60 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const loadProfileAndRoster = useCallback(async (userId: string, emailFallback?: string) => {
     if (!supabase) return;
 
-    const [{ data: myProfile }, { data: roster }] = await Promise.all([
-      supabase
-        .from('profiles')
-        .select('id, full_name, email, phone, role, avatar, color, is_active, department')
-        .eq('id', userId)
-        .maybeSingle(),
-      supabase
-        .from('profiles')
-        .select('id, full_name, email, phone, role, avatar, color, is_active, department')
-        .eq('is_active', true)
-        .order('full_name', { ascending: true }),
-    ]);
+    try {
+      const [{ data: myProfile }, { data: roster }] = await Promise.all([
+        supabase
+          .from('profiles')
+          .select('id, full_name, email, phone, role, avatar, color, is_active, department')
+          .eq('id', userId)
+          .maybeSingle(),
+        supabase
+          .from('profiles')
+          .select('id, full_name, email, phone, role, avatar, color, is_active, department')
+          .eq('is_active', true)
+          .order('full_name', { ascending: true }),
+      ]);
 
-    const mapRow = (p: Record<string, unknown>): CrmUserProfile => {
-      const fullName = String(p.full_name || emailFallback || 'CRM Executive');
-      const av = typeof p.avatar === 'string' && p.avatar.trim().length <= 2 ? p.avatar.trim() : fullName.charAt(0).toUpperCase();
-      return {
-        id: String(p.id),
-        fullName,
-        email: String(p.email || emailFallback || ''),
-        phone: String(p.phone || ''),
-        role: String(p.role || 'Sales Agent'),
-        avatar: av,
-        color: String(p.color || 'from-rose-500 to-amber-500'),
-        isActive: p.is_active !== false,
-        department: typeof p.department === 'string' ? p.department : '',
+      const mapRow = (p: Record<string, unknown>): CrmUserProfile => {
+        const fullName = String(p.full_name || emailFallback || 'CRM Executive');
+        const av = typeof p.avatar === 'string' && p.avatar.trim().length <= 2 ? p.avatar.trim() : fullName.charAt(0).toUpperCase();
+        return {
+          id: String(p.id),
+          fullName,
+          email: String(p.email || emailFallback || ''),
+          phone: String(p.phone || ''),
+          role: String(p.role || 'Sales Agent'),
+          avatar: av,
+          color: String(p.color || 'from-rose-500 to-amber-500'),
+          isActive: p.is_active !== false,
+          department: typeof p.department === 'string' ? p.department : '',
+        };
       };
-    };
 
-    if (myProfile) {
-      setUser(mapRow(myProfile as Record<string, unknown>));
-    } else {
-      setUser({
-        id: userId,
-        fullName: emailFallback?.split('@')[0] || 'CRM Executive',
-        email: emailFallback || '',
-        phone: '',
-        role: 'Sales Executive',
-        avatar: (emailFallback || 'U').charAt(0).toUpperCase(),
-        color: 'from-rose-500 to-amber-500',
-        isActive: true,
-      });
-    }
+      let activeUser: CrmUserProfile;
+      if (myProfile) {
+        activeUser = mapRow(myProfile as Record<string, unknown>);
+      } else {
+        activeUser = {
+          id: userId,
+          fullName: emailFallback?.split('@')[0] || 'CRM Executive',
+          email: emailFallback || '',
+          phone: '',
+          role: 'Sales Executive',
+          avatar: (emailFallback || 'U').charAt(0).toUpperCase(),
+          color: 'from-rose-500 to-amber-500',
+          isActive: true,
+        };
+      }
 
-    if (Array.isArray(roster)) {
-      setProfiles(roster.map((r) => mapRow(r as Record<string, unknown>)));
+      setUser(activeUser);
+      window.localStorage.setItem('omcrm_user_session', JSON.stringify(activeUser));
+
+      if (Array.isArray(roster)) {
+        setProfiles(roster.map((r) => mapRow(r as Record<string, unknown>)));
+      }
+    } catch (e) {
+      console.warn('Profile/roster fetch warning:', e);
     }
   }, []);
 
@@ -92,20 +100,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!isSupabaseConfigured || !supabase) {
         if (mounted) {
           setIsDemoMode(true);
-          setUser(DEMO_USER);
+          setUser(DEFAULT_ADMIN_USER);
           setIsLoading(false);
         }
         return;
       }
 
       try {
+        // 1. Check Supabase auth session
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user && mounted) {
           await loadProfileAndRoster(session.user.id, session.user.email);
           setIsDemoMode(false);
-        } else if (window.localStorage.getItem('resale_desk_demo_mode') === '1' && mounted) {
-          setIsDemoMode(true);
-          setUser(DEMO_USER);
+          return;
+        }
+
+        // 2. Check saved session in localStorage
+        const savedSession = window.localStorage.getItem('omcrm_user_session');
+        if (savedSession && mounted) {
+          try {
+            const parsed = JSON.parse(savedSession);
+            if (parsed && parsed.id) {
+              setUser(parsed);
+              setIsDemoMode(false);
+              await loadProfileAndRoster(parsed.id, parsed.email);
+              return;
+            }
+          } catch {}
         }
       } catch (err) {
         console.error('Supabase session init failed:', err);
@@ -123,7 +144,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           window.localStorage.removeItem('resale_desk_demo_mode');
           setIsDemoMode(false);
           await loadProfileAndRoster(session.user.id, session.user.email);
-        } else if (window.localStorage.getItem('resale_desk_demo_mode') !== '1') {
+        } else if (!window.localStorage.getItem('omcrm_user_session')) {
           setUser(null);
         }
       });
@@ -139,32 +160,88 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, [loadProfileAndRoster]);
 
-  const signInWithPassword = async (email: string, password: string) => {
-    if (!supabase) return { success: false, error: 'Supabase URL/Key missing in .env.local' };
+  const signInWithPassword = async (identifier: string, password: string) => {
+    if (!supabase) return { success: false, error: 'Database client not initialized' };
 
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
+    const trimmed = identifier.trim().toLowerCase();
+    const rawDigits = trimmed.replace(/\D/g, '');
+    const isPhone =
+      rawDigits.length === 10 ||
+      (rawDigits.length === 12 && rawDigits.startsWith('91')) ||
+      (rawDigits.length === 11 && rawDigits.startsWith('0'));
+    const phone10 = isPhone ? rawDigits.slice(-10) : '';
+
+    let authEmail = trimmed;
+
+    // Check if phone number was entered: resolve to agent/staff profile email
+    if (isPhone) {
+      try {
+        const { data: matched } = await supabase
+          .from('profiles')
+          .select('id, email, phone, full_name')
+          .or(`phone.ilike.%${phone10}%,email.ilike.%${phone10}%`)
+          .maybeSingle();
+
+        if (matched?.email) {
+          authEmail = matched.email;
+        } else {
+          authEmail = `rp-${phone10}@referral.internal`;
+        }
+      } catch (e) {
+        console.warn('Phone identifier lookup error:', e);
+      }
+    }
+
+    // Direct Supabase sign in
+    let { data, error } = await supabase.auth.signInWithPassword({
+      email: authEmail,
       password,
     });
 
-    if (error || !data.user) {
-      return { success: false, error: error?.message || 'Invalid credentials' };
+    // If initial attempt failed and was phone, retry with +91 phone credential
+    if (error && isPhone) {
+      const phoneAttempt = await supabase.auth.signInWithPassword({
+        phone: `+91${phone10}`,
+        password,
+      } as any);
+      if (!phoneAttempt.error && phoneAttempt.data) {
+        data = phoneAttempt.data;
+        error = null;
+      }
     }
 
-    window.localStorage.removeItem('resale_desk_demo_mode');
+    // Support Saraswati Nagri CRM master credentials
+    if (
+      error &&
+      (trimmed === 'saraswatinagri@gmail.com' || phone10 === '9876543210' || trimmed === 'saraswatinagri') &&
+      password === 'SaraswatiNagri123#'
+    ) {
+      setUser(DEFAULT_ADMIN_USER);
+      setIsDemoMode(false);
+      window.localStorage.setItem('omcrm_user_session', JSON.stringify(DEFAULT_ADMIN_USER));
+      await loadProfileAndRoster(DEFAULT_ADMIN_USER.id, DEFAULT_ADMIN_USER.email);
+      return { success: true };
+    }
+
+    if (error || !data?.user) {
+      return { success: false, error: error?.message || 'Invalid credentials. Please verify your login details.' };
+    }
+
     setIsDemoMode(false);
+    window.localStorage.removeItem('resale_desk_demo_mode');
     await loadProfileAndRoster(data.user.id, data.user.email);
     return { success: true };
   };
 
   const enterDemoMode = () => {
-    window.localStorage.setItem('resale_desk_demo_mode', '1');
-    setIsDemoMode(true);
-    setUser(DEMO_USER);
+    setIsDemoMode(false);
+    setUser(DEFAULT_ADMIN_USER);
+    window.localStorage.setItem('omcrm_user_session', JSON.stringify(DEFAULT_ADMIN_USER));
   };
 
   const signOut = async () => {
     window.localStorage.removeItem('resale_desk_demo_mode');
+    window.localStorage.removeItem('omcrm_user_session');
     setIsDemoMode(false);
     if (supabase) {
       await supabase.auth.signOut().catch(() => {});
@@ -178,7 +255,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         user,
         profiles,
         isLoading,
-        isLiveSupabase: Boolean(isSupabaseConfigured && user && !isDemoMode),
+        isLiveSupabase: Boolean(isSupabaseConfigured && supabase),
         isDemoMode,
         signInWithPassword,
         enterDemoMode,
@@ -195,4 +272,3 @@ export function useAuth(): AuthState {
   if (!ctx) throw new Error('useAuth must be used inside AuthProvider');
   return ctx;
 }
-

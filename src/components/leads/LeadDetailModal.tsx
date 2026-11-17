@@ -63,6 +63,7 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
   const [callerName, setCallerName] = useState('Nilesh Thakre');
   const [callNotes, setCallNotes] = useState('');
   const [callOutcome, setCallOutcome] = useState<CallLog['outcome']>('Interested');
+  const [nextFollowUpDate, setNextFollowUpDate] = useState('');
 
   // New visit state
   const [selectedPropertyId, setSelectedPropertyId] = useState(properties[0]?.id || '');
@@ -80,9 +81,11 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
     onAddCallLog(lead.id, {
       caller: callerName,
       notes: callNotes.trim(),
-      outcome: callOutcome
+      outcome: callOutcome,
+      nextFollowUpDate: nextFollowUpDate || undefined,
     });
     setCallNotes('');
+    setNextFollowUpDate('');
   };
 
   const handleScheduleVisitSubmit = (e: React.FormEvent) => {
@@ -355,15 +358,34 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
                       onChange={(e) => setCallOutcome(e.target.value as CallLog['outcome'])}
                       className="w-full p-2 text-xs border border-slate-200 rounded-lg bg-white font-bold"
                     >
-                      <option value="Interested">Interested / Follow Up</option>
-                      <option value="Scheduled Visit">Scheduled Site Visit</option>
+                      <option value="Interested">Interested (Follow Up)</option>
+                      <option value="Scheduled Visit">Site Visit Scheduled</option>
+                      <option value="Site Visit Done">Site Visit Done</option>
                       <option value="Follow-up Needed">Follow-up Needed</option>
                       <option value="Ringing / No Answer">Ringing / No Answer</option>
+                      <option value="Price Too High">Price Too High (Price zyada)</option>
                       <option value="Budget Mismatch">Budget Mismatch</option>
+                      <option value="Already Sold">Already Sold (Sold out ho gaya)</option>
+                      <option value="Already Rented">Already Rented (Rent pe de diya)</option>
+                      <option value="Bought Elsewhere">Bought Elsewhere (Kahin aur kharida)</option>
+                      <option value="Location Not Suitable">Location Not Suitable</option>
+                      <option value="Requirement Closed">Requirement Closed (Won Deal)</option>
                       <option value="Not Interested">Not Interested</option>
                     </select>
                   </div>
                 </div>
+
+                {(callOutcome === 'Interested' || callOutcome === 'Follow-up Needed' || callOutcome === 'Scheduled Visit') && (
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-500 mb-1 block">Next Follow-up Date &amp; Time</label>
+                    <input
+                      type="datetime-local"
+                      value={nextFollowUpDate}
+                      onChange={(e) => setNextFollowUpDate(e.target.value)}
+                      className="w-full p-2 text-xs border border-slate-200 rounded-lg bg-white"
+                    />
+                  </div>
+                )}
 
                 <div>
                   <label className="text-[11px] font-bold text-slate-500 mb-1 block">Discussion Summary</label>
@@ -399,10 +421,31 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
                         <span className="text-[10px] text-slate-400">{formatDateTime(log.date)}</span>
                       </div>
                       <p className="text-slate-600">{log.notes}</p>
-                      <div className="pt-0.5">
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">
+                      <div className="pt-0.5 flex items-center gap-2 flex-wrap">
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                          log.outcome === 'Interested' || log.outcome === 'Follow-up Needed'
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                            : log.outcome === 'Scheduled Visit'
+                            ? 'bg-blue-50 text-blue-700 border-blue-200'
+                            : log.outcome === 'Site Visit Done'
+                            ? 'bg-purple-50 text-purple-700 border-purple-200'
+                            : log.outcome === 'Requirement Closed'
+                            ? 'bg-green-50 text-green-700 border-green-200'
+                            : log.outcome === 'Ringing / No Answer'
+                            ? 'bg-amber-50 text-amber-700 border-amber-200'
+                            : log.outcome === 'Price Too High' || log.outcome === 'Budget Mismatch'
+                            ? 'bg-orange-50 text-orange-700 border-orange-200'
+                            : log.outcome === 'Not Interested' || log.outcome === 'Already Sold' || log.outcome === 'Already Rented' || log.outcome === 'Bought Elsewhere'
+                            ? 'bg-rose-50 text-rose-700 border-rose-200'
+                            : 'bg-slate-50 text-slate-700 border-slate-200'
+                        }`}>
                           {log.outcome}
                         </span>
+                        {log.nextFollowUpDate && (
+                          <span className="text-[10px] text-slate-500 font-medium">
+                            Follow-up: {new Date(log.nextFollowUpDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        )}
                       </div>
                     </div>
                   ))

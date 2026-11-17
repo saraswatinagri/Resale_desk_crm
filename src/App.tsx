@@ -88,10 +88,15 @@ export function App() {
         ]);
 
         if (leadsRes.error) {
+          console.warn('Leads sync:', leadsRes.error);
           showNotification(`Leads sync: ${leadsRes.error}`, 'err');
-        } else {
+          const localLeads = storage.getLeads();
+          if (localLeads.length > 0) setLeads(localLeads);
+        } else if (leadsRes.data && leadsRes.data.length > 0) {
           setLeads(leadsRes.data);
           setActiveLead((prev) => (prev ? leadsRes.data.find((l) => l.id === prev.id) || null : null));
+        } else {
+          setLeads(storage.getLeads());
         }
 
         // Merge properties seamlessly: remote + local so nothing is ever lost
@@ -102,13 +107,17 @@ export function App() {
         setProperties(mergedProps);
         setActiveProperty((prev) => (prev ? mergedProps.find((p) => p.id === prev.id) || null : null));
 
-        if (!projectsRes.error) {
+        if (!projectsRes.error && projectsRes.data) {
           setSaraswatiProjects(projectsRes.data);
         }
       } else {
         setProperties(storage.getProperties());
         setLeads(storage.getLeads());
       }
+    } catch (err) {
+      console.error('Data reload error:', err);
+      setProperties(storage.getProperties());
+      setLeads(storage.getLeads());
     } finally {
       setIsSyncing(false);
     }
@@ -237,23 +246,23 @@ export function App() {
 
   // Handler: Add Call Log
   const handleAddCallLog = async (leadId: string, log: Omit<CallLog, 'id' | 'date'>) => {
+    storage.addCallLog(leadId, log);
+
     if (isLiveSupabase && user) {
       const target = leads.find((l) => l.id === leadId);
       const res = await addCallLogInSupabase(leadId, log, user.id, target?.interactionCount || 0);
       if (res.error) {
         showNotification(res.error, 'err');
-        return;
+      } else {
+        showNotification(`Call outcome "${log.outcome}" saved & synced to Saraswati Nagri CRM!`);
       }
-      await reloadData();
-      showNotification('Call log synced to Saraswati Nagri CRM!');
-      return;
+    } else {
+      showNotification(`Call outcome "${log.outcome}" recorded!`);
     }
 
-    storage.addCallLog(leadId, log);
-    reloadData();
-    const updatedLead = storage.getLeadById(leadId);
+    await reloadData();
+    const updatedLead = storage.getLeadById(leadId) || leads.find((l) => l.id === leadId);
     if (updatedLead) setActiveLead(updatedLead);
-    showNotification('Call log recorded successfully');
   };
 
   // Handler: Schedule Visit

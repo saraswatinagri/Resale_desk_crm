@@ -151,12 +151,28 @@ export interface ResaleProperty {
   updatedAt: string;
 }
 
+export type CallOutcome =
+  | 'Interested'
+  | 'Scheduled Visit'
+  | 'Follow-up Needed'
+  | 'Ringing / No Answer'
+  | 'Budget Mismatch'
+  | 'Price Too High'
+  | 'Already Sold'
+  | 'Already Rented'
+  | 'Bought Elsewhere'
+  | 'Location Not Suitable'
+  | 'Site Visit Done'
+  | 'Requirement Closed'
+  | 'Not Interested';
+
 export interface CallLog {
   id: string;
   date: string;
   caller: string;
   notes: string;
-  outcome: 'Interested' | 'Scheduled Visit' | 'Follow-up Needed' | 'Ringing / No Answer' | 'Budget Mismatch' | 'Not Interested';
+  outcome: CallOutcome;
+  nextFollowUpDate?: string;
 }
 
 export interface ScheduledVisit {
