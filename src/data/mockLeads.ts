@@ -19,21 +19,21 @@ export const INITIAL_LEADS: ResaleLead[] = [
     source: 'Website',
     priority: 'hot',
     stage: 'visit_scheduled',
-    assignedTo: 'Nilesh Thakre (Resale Lead)',
+    assignedTo: 'Sagar Madhukar kamble',
     nextFollowUp: '2026-11-10T11:00:00Z',
     notes: 'Buyer works at TCS MIHAN. Looking strictly for a ready-to-move 3 BHK in Besa or Manish Nagar with lift & covered parking. Budget pre-approved from SBI.',
     callLogs: [
       {
         id: 'cl-1',
         date: '2026-11-08T15:30:00Z',
-        caller: 'Nilesh Thakre',
+        caller: 'Sagar Madhukar kamble',
         notes: 'Explained 3 BHK flat in Besa (prop-101). Client very impressed by location near Podar school.',
         outcome: 'Scheduled Visit'
       },
       {
         id: 'cl-2',
         date: '2026-11-06T11:00:00Z',
-        caller: 'Snehal Bhoyar',
+        caller: 'Kavya Sunil Shelare',
         notes: 'First qualifying call. Qualified budget to 65L. Needs ready possession by next month.',
         outcome: 'Interested'
       }
@@ -47,7 +47,7 @@ export const INITIAL_LEADS: ResaleLead[] = [
         date: '2026-11-10',
         time: '11:00 AM',
         status: 'scheduled',
-        agent: 'Nilesh Thakre'
+        agent: 'Sagar Madhukar kamble'
       }
     ],
     interestedPropertyIds: ['prop-101'],
@@ -118,14 +118,14 @@ export const INITIAL_LEADS: ResaleLead[] = [
     source: 'Walk-in',
     priority: 'warm',
     stage: 'contacted',
-    assignedTo: 'Amit Deshmukh',
+    assignedTo: 'Nitish Suresh Maidanwar',
     nextFollowUp: '2026-11-11T12:00:00Z',
     notes: 'Retired government officer wanting an investment plot along Wardha Road or Hingna. Needs clear NMRDA sanction and RL. No litigation.',
     callLogs: [
       {
         id: 'cl-4',
         date: '2026-11-06T16:00:00Z',
-        caller: 'Amit Deshmukh',
+        caller: 'Nitish Suresh Maidanwar',
         notes: 'Shared Jamtha 1500 sqft plot details (prop-104) on WhatsApp. Client reviewing with son.',
         outcome: 'Follow-up Needed'
       }
@@ -153,7 +153,7 @@ export const INITIAL_LEADS: ResaleLead[] = [
     source: 'Direct Call',
     priority: 'hot',
     stage: 'visit_scheduled',
-    assignedTo: 'Rahul Meshram',
+    assignedTo: 'Vaibhav khadse',
     nextFollowUp: '2026-11-10T16:00:00Z',
     notes: 'Transferring from Pune to Nagpur next week. Needs 3 BHK rental flat near Metro / Wardha Road corridor.',
     callLogs: [],
@@ -166,7 +166,7 @@ export const INITIAL_LEADS: ResaleLead[] = [
         date: '2026-11-10',
         time: '04:00 PM',
         status: 'scheduled',
-        agent: 'Rahul Meshram'
+        agent: 'Vaibhav khadse'
       }
     ],
     interestedPropertyIds: ['prop-105'],
@@ -190,7 +190,7 @@ export const INITIAL_LEADS: ResaleLead[] = [
     source: 'Referral',
     priority: 'warm',
     stage: 'new',
-    assignedTo: 'Nilesh Thakre (Resale Lead)',
+    assignedTo: 'Sagar Madhukar kamble',
     nextFollowUp: '2026-11-09T15:30:00Z',
     notes: 'Has a 3 BHK row house in Hingna to sell. Requesting resale desk to visit for valuation and list on portal.',
     callLogs: [],

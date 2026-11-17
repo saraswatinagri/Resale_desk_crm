@@ -9,7 +9,8 @@ import {
   Phone, 
   MessageSquare, 
   Building2,
-  CalendarCheck
+  CalendarCheck,
+  ClipboardCheck
 } from 'lucide-react';
 import { ResaleLead, ResaleProperty, ScheduledVisit } from '../../types/crm';
 import { 
@@ -17,6 +18,7 @@ import {
   generateWhatsAppLink, 
   buildSiteVisitWhatsAppMessage 
 } from '../../utils/formatters';
+import { VisitAuditPanel } from './VisitAuditPanel';
 
 interface SiteVisitsDeskProps {
   leads: ResaleLead[];
@@ -31,6 +33,7 @@ export const SiteVisitsDesk: React.FC<SiteVisitsDeskProps> = ({
   onViewLead,
   onViewProperty
 }) => {
+  const [activeTab, setActiveTab] = useState<'scheduler' | 'audit'>('scheduler');
   const [filterStatus, setFilterStatus] = useState<string>('all');
 
   // Flatten all visits with their associated lead info
@@ -58,36 +61,78 @@ export const SiteVisitsDesk: React.FC<SiteVisitsDeskProps> = ({
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center border border-amber-200">
-              <CalendarCheck className="h-4 w-4" />
-            </div>
-            <h1 className="text-xl sm:text-2xl font-black text-slate-800 tracking-tight">Site Visits Scheduler</h1>
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200">
-              {scheduledCount} Active Schedules
-            </span>
-          </div>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Coordination console for field executives showing properties in Besa, Wardha Road, and Hingna
-          </p>
-        </div>
+      {/* Tab Switcher */}
+      <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
+        <button
+          type="button"
+          onClick={() => setActiveTab('scheduler')}
+          className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+            activeTab === 'scheduler'
+              ? 'bg-amber-500 text-white shadow-sm'
+              : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+          }`}
+        >
+          <CalendarCheck className="w-3.5 h-3.5" />
+          <span>Scheduled Visits ({allVisits.length})</span>
+        </button>
 
-        {/* Filter */}
-        <div className="flex items-center gap-2">
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            className="px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500 shadow-sm"
-          >
-            <option value="all">All Visits ({allVisits.length})</option>
-            <option value="scheduled">🟡 Scheduled / Upcoming ({scheduledCount})</option>
-            <option value="completed">🟢 Completed Visits ({completedCount})</option>
-          </select>
-        </div>
+        <button
+          type="button"
+          onClick={() => setActiveTab('audit')}
+          className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+            activeTab === 'audit'
+              ? 'bg-amber-600 text-white shadow-sm'
+              : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+          }`}
+        >
+          <ClipboardCheck className="w-3.5 h-3.5" />
+          <span>Site Visit Audit (WhatsApp vs CRM)</span>
+          <span className="px-1.5 py-0.5 rounded-full text-[9px] font-black bg-white/20 text-white uppercase tracking-wider">
+            Live Slips
+          </span>
+        </button>
       </div>
+
+      {activeTab === 'audit' ? (
+        <VisitAuditPanel
+          onOpenLeadByPhone={(phone) => {
+            const digits = phone.replace(/\D/g, '').slice(-10);
+            const found = leads.find((l) => l.phone.replace(/\D/g, '').includes(digits));
+            if (found) onViewLead(found);
+          }}
+        />
+      ) : (
+        <>
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <div className="h-8 w-8 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center border border-amber-200">
+                  <CalendarCheck className="h-4 w-4" />
+                </div>
+                <h1 className="text-xl sm:text-2xl font-black text-slate-800 tracking-tight">Site Visits Scheduler</h1>
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                  {scheduledCount} Active Schedules
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Coordination console for field executives showing properties in Besa, Wardha Road, and Hingna
+              </p>
+            </div>
+
+            {/* Filter */}
+            <div className="flex items-center gap-2">
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500 shadow-sm"
+              >
+                <option value="all">All Visits ({allVisits.length})</option>
+                <option value="scheduled">🟡 Scheduled / Upcoming ({scheduledCount})</option>
+                <option value="completed">🟢 Completed Visits ({completedCount})</option>
+              </select>
+            </div>
+          </div>
 
       {/* Visits List */}
       {filteredVisits.length === 0 ? (
@@ -187,7 +232,7 @@ export const SiteVisitsDesk: React.FC<SiteVisitsDeskProps> = ({
                         visit.date,
                         visit.time,
                         visit.agent,
-                        '9822451080'
+                        '8275437826'
                       )
                     )}
                     target="_blank"
@@ -203,6 +248,8 @@ export const SiteVisitsDesk: React.FC<SiteVisitsDeskProps> = ({
             );
           })}
         </div>
+      )}
+        </>
       )}
 
     </div>

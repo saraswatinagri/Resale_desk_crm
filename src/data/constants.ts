@@ -82,10 +82,15 @@ export const COMMON_AMENITIES = [
 ];
 
 export const SALES_AGENTS = [
-  { id: 'agent-1', name: 'Nilesh Thakre (Resale Lead)', phone: '9822451080', role: 'Resale Desk Manager' },
-  { id: 'agent-2', name: 'Prachi Ingle', phone: '9765123908', role: 'Senior Sales Executive' },
-  { id: 'agent-3', name: 'Amit Deshmukh', phone: '9422894512', role: 'Property Consultant' },
-  { id: 'agent-4', name: 'Snehal Bhoyar', phone: '9890451233', role: 'Client Relationship Executive' },
-  { id: 'agent-5', name: 'Rahul Meshram', phone: '9370124890', role: 'Field Agent & Site Incharge' }
+  { id: 'sagark', name: 'Sagar Madhukar kamble', phone: '8275437826', role: 'Sales Agent (Resale Desk Head)' },
+  { id: 'anirudhat', name: 'Aniruddha Purnachandra Thakre', phone: '9823388866', role: 'Team Lead' },
+  { id: 'ishai', name: 'PRACHI RAJESH INGLE', phone: '9307110281', role: 'Team Lead' },
+  { id: 'sanjayd', name: 'Sanjay dineah deshpande', phone: '9699193453', role: 'Team Lead' },
+  { id: 'kavyas', name: 'Kavya Sunil Shelare', phone: '8806067979', role: 'Sales Agent' },
+  { id: 'nitishm', name: 'Nitish Suresh Maidanwar', phone: '8888325912', role: 'Sales Agent' },
+  { id: 'vaibhavk', name: 'Vaibhav khadse', phone: '8806624083', role: 'Sales Agent' },
+  { id: 'sachin', name: 'Sachin Ingle', phone: '9990006662', role: 'Director' },
+  { id: 'admin', name: 'Nidhi', phone: '7498119036', role: 'Operational Manager' },
+  { id: 'office', name: 'SaraswatiNagri (Office)', phone: '8956040220', role: 'Super Admin' }
 ];
 

@@ -465,6 +465,7 @@ export function App() {
               onDeleteLead={handleDeleteLead}
               onOpenSmartMatcherForLead={handleOpenSmartMatcherForLead}
               onExportCsv={handleExportLeadsCsv}
+              onAddCallLog={handleAddCallLog}
             />
           )}
 

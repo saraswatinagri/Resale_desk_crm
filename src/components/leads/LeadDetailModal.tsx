@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   X, 
   Phone, 
@@ -24,7 +24,8 @@ import {
   formatDateTime 
 } from '../../utils/formatters';
 import { getMatchingPropertiesForLead } from '../../utils/matcher';
-import { LEAD_STAGES } from '../../data/constants';
+import { LEAD_STAGES, SALES_AGENTS } from '../../data/constants';
+import { useAuth } from '../../lib/auth-context';
 
 interface LeadDetailModalProps {
   lead: ResaleLead | null;
@@ -55,12 +56,27 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
   onAddCallLog,
   onScheduleVisit
 }) => {
+  const { user, profiles } = useAuth();
   if (!isOpen || !lead) return null;
 
   const [activeTab, setActiveTab] = useState<'matches' | 'calls' | 'visits' | 'details'>('matches');
 
+  const teamAgents = useMemo(() => {
+    const list: string[] = [];
+    if (user?.fullName) list.push(user.fullName);
+    SALES_AGENTS.forEach(a => {
+      if (!list.includes(a.name)) list.push(a.name);
+    });
+    profiles.forEach(p => {
+      if (!list.includes(p.fullName)) list.push(p.fullName);
+    });
+    return list;
+  }, [user, profiles]);
+
+  const defaultAgent = user?.fullName || SALES_AGENTS[0].name;
+
   // New call log state
-  const [callerName, setCallerName] = useState('Nilesh Thakre');
+  const [callerName, setCallerName] = useState(defaultAgent);
   const [callNotes, setCallNotes] = useState('');
   const [callOutcome, setCallOutcome] = useState<CallLog['outcome']>('Interested');
   const [nextFollowUpDate, setNextFollowUpDate] = useState('');
@@ -69,7 +85,7 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
   const [selectedPropertyId, setSelectedPropertyId] = useState(properties[0]?.id || '');
   const [visitDate, setVisitDate] = useState(new Date().toISOString().split('T')[0]);
   const [visitTime, setVisitTime] = useState('11:00 AM');
-  const [visitAgent, setVisitAgent] = useState('Nilesh Thakre');
+  const [visitAgent, setVisitAgent] = useState(defaultAgent);
 
   // Calculate matching properties
   const matches = getMatchingPropertiesForLead(lead, properties);
@@ -343,12 +359,15 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="text-[11px] font-bold text-slate-500 mb-1 block">Caller Executive</label>
-                    <input
-                      type="text"
+                    <select
                       value={callerName}
                       onChange={(e) => setCallerName(e.target.value)}
-                      className="w-full p-2 text-xs border border-slate-200 rounded-lg bg-white"
-                    />
+                      className="w-full p-2 text-xs border border-slate-200 rounded-lg bg-white font-medium"
+                    >
+                      {teamAgents.map((agent) => (
+                        <option key={agent} value={agent}>{agent}</option>
+                      ))}
+                    </select>
                   </div>
 
                   <div>
@@ -500,12 +519,15 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
 
                   <div>
                     <label className="text-[11px] font-bold text-slate-500 mb-1 block">Field Executive</label>
-                    <input
-                      type="text"
+                    <select
                       value={visitAgent}
                       onChange={(e) => setVisitAgent(e.target.value)}
-                      className="w-full p-2 text-xs border border-slate-200 rounded-lg bg-white"
-                    />
+                      className="w-full p-2 text-xs border border-slate-200 rounded-lg bg-white font-medium"
+                    >
+                      {teamAgents.map((agent) => (
+                        <option key={agent} value={agent}>{agent}</option>
+                      ))}
+                    </select>
                   </div>
                 </div>
 

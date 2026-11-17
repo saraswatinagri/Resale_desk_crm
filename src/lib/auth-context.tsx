@@ -17,13 +17,27 @@ const DEFAULT_ADMIN_USER: CrmUserProfile = {
   id: 'dbc71212-d38b-40cc-8df2-4a99828ff449',
   fullName: 'SaraswatiNagri (Office)',
   email: 'saraswatinagri@gmail.com',
-  phone: '9876543210',
+  phone: '8956040220',
   role: 'Super Admin',
   avatar: 'SN',
   color: 'from-rose-500 to-amber-500',
   isActive: true,
   department: 'Management',
 };
+
+// Recognized company employee roles from Saraswati Nagri CRM profiles
+const EMPLOYEE_ROLES = new Set([
+  'super admin',
+  'director',
+  'team lead',
+  'sales agent',
+  'operational manager',
+  'staff',
+  'admin',
+  'accounts & finance',
+  'intern',
+  'driver'
+]);
 
 const AuthContext = createContext<AuthState | null>(null);
 
@@ -171,26 +185,58 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       (rawDigits.length === 11 && rawDigits.startsWith('0'));
     const phone10 = isPhone ? rawDigits.slice(-10) : '';
 
-    let authEmail = trimmed;
+    const isMasterLogin =
+      (trimmed === 'saraswatinagri@gmail.com' || phone10 === '8956040220' || trimmed === 'saraswatinagri') &&
+      password === 'SaraswatiNagri123#';
 
-    // Check if phone number was entered: resolve to agent/staff profile email
-    if (isPhone) {
-      try {
-        const { data: matched } = await supabaseDb
-          .from('profiles')
-          .select('id, email, phone, full_name')
-          .or(`phone.ilike.%${phone10}%,email.ilike.%${phone10}%`)
-          .maybeSingle();
-
-        if (matched?.email) {
-          authEmail = matched.email;
-        } else {
-          authEmail = `rp-${phone10}@referral.internal`;
-        }
-      } catch (e) {
-        console.warn('Phone identifier lookup error:', e);
+    // 1. Strict Employee Verification against public.profiles
+    let matchedProfile: any = null;
+    try {
+      let query = supabaseDb.from('profiles').select('id, email, phone, full_name, role, is_active, department');
+      if (isPhone) {
+        query = query.or(`phone.ilike.%${phone10}%,email.ilike.%${phone10}%`);
+      } else {
+        query = query.eq('email', trimmed);
       }
+      const { data: matched } = await query.maybeSingle();
+      matchedProfile = matched;
+    } catch (e) {
+      console.warn('Employee verification lookup warning:', e);
     }
+
+    // If master admin credentials used, allow access
+    if (isMasterLogin) {
+      setUser(DEFAULT_ADMIN_USER);
+      setIsDemoMode(false);
+      window.localStorage.setItem('omcrm_user_session', JSON.stringify(DEFAULT_ADMIN_USER));
+      await loadProfileAndRoster(DEFAULT_ADMIN_USER.id, DEFAULT_ADMIN_USER.email);
+      return { success: true };
+    }
+
+    // 2. Enforce: ONLY verified Saraswati Nagri company employees can login
+    if (!matchedProfile) {
+      return {
+        success: false,
+        error: 'Access restricted: Only verified Saraswati Nagri company employees can access Resale Desk CRM.'
+      };
+    }
+
+    if (matchedProfile.is_active === false) {
+      return {
+        success: false,
+        error: 'Employee account is inactive. Please contact Saraswati Nagri office administration.'
+      };
+    }
+
+    const roleName = String(matchedProfile.role || '').toLowerCase();
+    if (!EMPLOYEE_ROLES.has(roleName)) {
+      return {
+        success: false,
+        error: `Access restricted: Role "${matchedProfile.role}" cannot access internal Resale Desk CRM. Only company staff & sales executives are authorized.`
+      };
+    }
+
+    const authEmail = matchedProfile.email || trimmed;
 
     // Direct Supabase sign in via auth client
     let { data, error } = await supabaseAuth.auth.signInWithPassword({
@@ -210,21 +256,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     }
 
-    // Support Saraswati Nagri CRM master credentials
-    if (
-      error &&
-      (trimmed === 'saraswatinagri@gmail.com' || phone10 === '9876543210' || trimmed === 'saraswatinagri') &&
-      password === 'SaraswatiNagri123#'
-    ) {
-      setUser(DEFAULT_ADMIN_USER);
-      setIsDemoMode(false);
-      window.localStorage.setItem('omcrm_user_session', JSON.stringify(DEFAULT_ADMIN_USER));
-      await loadProfileAndRoster(DEFAULT_ADMIN_USER.id, DEFAULT_ADMIN_USER.email);
-      return { success: true };
-    }
-
     if (error || !data?.user) {
-      return { success: false, error: error?.message || 'Invalid credentials. Please verify your login details.' };
+      return { success: false, error: error?.message || 'Invalid password for employee account.' };
     }
 
     setIsDemoMode(false);

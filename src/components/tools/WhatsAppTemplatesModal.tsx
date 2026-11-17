@@ -10,6 +10,7 @@ import {
   Phone
 } from 'lucide-react';
 import { generateWhatsAppLink } from '../../utils/formatters';
+import { useAuth } from '../../lib/auth-context';
 
 interface WhatsAppTemplatesModalProps {
   isOpen: boolean;
@@ -30,7 +31,7 @@ const TEMPLATES: TemplateItem[] = [
     id: 't-1',
     title: 'New Lead Welcome & Introduction (Nagpur Resale Desk)',
     category: 'inquiry',
-    template: `Namaste {ClientName} ji,\n\nThank you for reaching out to *Nagpur Properties & Saraswati Nagri Resale Desk*.\n\nWe noted your requirement for a *{Requirement}* in Nagpur (Preferred: *{Locality}*, Budget: *{Budget}*).\n\nWe have verified, clear-title properties currently available with NMRDA sanction and loan pre-approvals.\n\nWhen would be a convenient time for a brief 2-minute phone call to understand your specific preferences (floor, facing, possession)?\n\n- Nilesh Thakre\nResale Desk Head | Nagpur Properties\n📱 9822451080`
+    template: `Namaste {ClientName} ji,\n\nThank you for reaching out to *Nagpur Properties & Saraswati Nagri Resale Desk*.\n\nWe noted your requirement for a *{Requirement}* in Nagpur (Preferred: *{Locality}*, Budget: *{Budget}*).\n\nWe have verified, clear-title properties currently available with NMRDA sanction and loan pre-approvals.\n\nWhen would be a convenient time for a brief 2-minute phone call to understand your specific preferences (floor, facing, possession)?\n\n- {AgentName}\nResale Desk Head | Nagpur Properties & Saraswati Nagri\n📱 {AgentPhone}`
   },
   {
     id: 't-2',
@@ -70,6 +71,7 @@ export const WhatsAppTemplatesModal: React.FC<WhatsAppTemplatesModalProps> = ({
   defaultPhone = '',
   defaultClientName = ''
 }) => {
+  const { user } = useAuth();
   if (!isOpen) return null;
 
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>(TEMPLATES[0].id);
@@ -80,6 +82,9 @@ export const WhatsAppTemplatesModal: React.FC<WhatsAppTemplatesModalProps> = ({
   const [copied, setCopied] = useState<boolean>(false);
 
   const currentTemplate = TEMPLATES.find(t => t.id === selectedTemplateId) || TEMPLATES[0];
+
+  const agentName = user?.fullName || 'Sagar Madhukar kamble';
+  const agentPhone = user?.phone || '8275437826';
 
   // Replace placeholders
   const processedMessage = currentTemplate.template
@@ -92,8 +97,8 @@ export const WhatsAppTemplatesModal: React.FC<WhatsAppTemplatesModalProps> = ({
     .replace(/{Address}/g, 'Near Pipla Fata')
     .replace(/{Date}/g, 'Tomorrow (Sunday)')
     .replace(/{Time}/g, '11:30 AM')
-    .replace(/{AgentName}/g, 'Nilesh Thakre')
-    .replace(/{AgentPhone}/g, '9822451080')
+    .replace(/{AgentName}/g, agentName)
+    .replace(/{AgentPhone}/g, agentPhone)
     .replace(/{TargetPrice}/g, '₹59 Lakhs');
 
   const handleCopy = () => {
@@ -221,7 +226,7 @@ export const WhatsAppTemplatesModal: React.FC<WhatsAppTemplatesModalProps> = ({
                 type="text"
                 value={recipientPhone}
                 onChange={(e) => setRecipientPhone(e.target.value)}
-                placeholder="e.g. 9822451080"
+                placeholder="e.g. 8275437826"
                 className="w-full sm:max-w-xs px-3 py-2 rounded-lg bg-white border border-teal-300 text-slate-900 font-mono font-bold focus:outline-none focus:ring-2 focus:ring-teal-500"
               />
             </div>

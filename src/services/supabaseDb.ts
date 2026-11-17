@@ -302,18 +302,20 @@ export async function fetchLeadsFromSupabase(
 
   const interactionsByLead = new Map<string, Array<Record<string, unknown>>>();
   if (leadIds.length > 0) {
-    const chunkIds = leadIds.slice(0, 200);
-    const { data: intRows } = await supabase
-      .from('lead_interactions')
-      .select('id, lead_id, type, content, outcome, scheduled_date, scheduled_time, visit_location, created_by, created_at')
-      .in('lead_id', chunkIds)
-      .order('created_at', { ascending: false });
+    for (let i = 0; i < leadIds.length; i += 200) {
+      const chunkIds = leadIds.slice(i, i + 200);
+      const { data: intRows } = await supabase
+        .from('lead_interactions')
+        .select('id, lead_id, type, content, outcome, scheduled_date, scheduled_time, visit_location, created_by, created_at')
+        .in('lead_id', chunkIds)
+        .order('created_at', { ascending: false });
 
-    for (const item of (intRows || []) as Array<Record<string, unknown>>) {
-      const lid = asStr(item.lead_id);
-      if (!lid) continue;
-      if (!interactionsByLead.has(lid)) interactionsByLead.set(lid, []);
-      interactionsByLead.get(lid)!.push(item);
+      for (const item of (intRows || []) as Array<Record<string, unknown>>) {
+        const lid = asStr(item.lead_id);
+        if (!lid) continue;
+        if (!interactionsByLead.has(lid)) interactionsByLead.set(lid, []);
+        interactionsByLead.get(lid)!.push(item);
+      }
     }
   }
 

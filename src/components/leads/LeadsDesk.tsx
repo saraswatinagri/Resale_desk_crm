@@ -18,7 +18,7 @@ import {
   Download,
   Trash2,
 } from 'lucide-react';
-import { ResaleLead, LeadStage, CrmUserProfile } from '../../types/crm';
+import { ResaleLead, LeadStage, CrmUserProfile, CallLog } from '../../types/crm';
 import { generateWhatsAppLink } from '../../utils/formatters';
 import { LEAD_STAGES, NAGPUR_LOCALITIES } from '../../data/constants';
 import {
@@ -28,6 +28,7 @@ import {
   daysSinceIso,
   isResaleIntent,
 } from '../../lib/resale';
+import { CallOutcomePromptModal } from './CallOutcomePromptModal';
 
 interface LeadsDeskProps {
   leads: ResaleLead[];
@@ -39,6 +40,49 @@ interface LeadsDeskProps {
   onDeleteLead: (leadId: string) => void;
   onOpenSmartMatcherForLead: (lead: ResaleLead) => void;
   onExportCsv?: () => void;
+  onAddCallLog?: (leadId: string, log: Omit<CallLog, 'id' | 'date'>) => Promise<void>;
+}
+
+export function CallOutcomeBadge({ outcome }: { outcome: string }) {
+  const o = outcome.toLowerCase();
+  let colorClass = 'bg-slate-100 text-slate-700 border-slate-200';
+  let icon = '📞';
+
+  if (o.includes('interested') || o.includes('follow-up')) {
+    colorClass = 'bg-emerald-50 text-emerald-700 border-emerald-200';
+    icon = '📞';
+  } else if (o.includes('visit') && o.includes('sched')) {
+    colorClass = 'bg-blue-50 text-blue-700 border-blue-200';
+    icon = '📍';
+  } else if (o.includes('visit') && o.includes('done')) {
+    colorClass = 'bg-purple-50 text-purple-700 border-purple-200';
+    icon = '✅';
+  } else if (o.includes('ring') || o.includes('no answer')) {
+    colorClass = 'bg-amber-50 text-amber-700 border-amber-200';
+    icon = '🔔';
+  } else if (o.includes('price') || o.includes('budget')) {
+    colorClass = 'bg-orange-50 text-orange-700 border-orange-200';
+    icon = '💰';
+  } else if (o.includes('sold') || o.includes('rent')) {
+    colorClass = 'bg-slate-100 text-slate-700 border-slate-300';
+    icon = '🏷️';
+  } else if (o.includes('bought') || o.includes('elsewhere')) {
+    colorClass = 'bg-zinc-100 text-zinc-700 border-zinc-300';
+    icon = '🏠';
+  } else if (o.includes('close') || o.includes('won') || o.includes('token')) {
+    colorClass = 'bg-green-50 text-green-700 border-green-200';
+    icon = '🎉';
+  } else if (o.includes('not interested') || o.includes('lost')) {
+    colorClass = 'bg-rose-50 text-rose-700 border-rose-200';
+    icon = '❌';
+  }
+
+  return (
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black border tracking-tight ${colorClass}`}>
+      <span>{icon}</span>
+      <span className="truncate max-w-[130px]">{outcome}</span>
+    </span>
+  );
 }
 
 function LeadCodeBadge({ code }: { code: string }) {
@@ -84,6 +128,7 @@ export const LeadsDesk: React.FC<LeadsDeskProps> = ({
   onDeleteLead,
   onOpenSmartMatcherForLead,
   onExportCsv,
+  onAddCallLog,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [queueFilter, setQueueFilter] = useState<'all' | 'today' | 'overdue' | 'hot'>('all');
@@ -94,6 +139,7 @@ export const LeadsDesk: React.FC<LeadsDeskProps> = ({
   const [agentFilter, setAgentFilter] = useState<string>('All');
   const [viewMode, setViewMode] = useState<'cards' | 'table' | 'kanban'>('cards');
   const [showAdvancedFilters, setShowAdvancedFilters] = useState<boolean>(false);
+  const [promptCallLead, setPromptCallLead] = useState<ResaleLead | null>(null);
 
   const STAGE_CHIPS = [
     { label: 'All', value: 'All' },
@@ -596,6 +642,49 @@ export const LeadsDesk: React.FC<LeadsDeskProps> = ({
                       </div>
                     </div>
 
+                    {/* Latest Call Outcome Section (Exact Saraswati Nagri CRM design) */}
+                    {(() => {
+                      const latestCall = lead.callLogs && lead.callLogs.length > 0 ? lead.callLogs[0] : null;
+                      if (latestCall) {
+                        const callDays = daysSinceIso(latestCall.date);
+                        return (
+                          <div className="relative z-10 flex flex-col gap-1 rounded-xl bg-slate-50/90 border border-slate-200/80 p-2 text-xs">
+                            <div className="flex items-center justify-between gap-1.5">
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                <CallOutcomeBadge outcome={latestCall.outcome} />
+                                <span className="text-[10px] text-slate-500 font-semibold truncate">
+                                  by {latestCall.caller}
+                                </span>
+                              </div>
+                              <span className="text-[9px] text-slate-400 font-medium shrink-0">
+                                {callDays === null ? '' : callDays === 0 ? 'Aaj' : callDays === 1 ? 'Kal' : `${callDays} din pehle`}
+                              </span>
+                            </div>
+                            {latestCall.notes && (
+                              <p className="text-[11px] text-slate-600 line-clamp-1 italic pl-0.5">
+                                &ldquo;{latestCall.notes}&rdquo;
+                              </p>
+                            )}
+                          </div>
+                        );
+                      }
+                      return (
+                        <div className="relative z-10 flex items-center justify-between rounded-xl bg-slate-50/50 border border-dashed border-slate-200 px-2.5 py-1.5 text-[10px] text-slate-400">
+                          <span>Abhi tak koi call outcome record nahi hai</span>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setPromptCallLead(lead);
+                            }}
+                            className="text-[10px] font-bold text-teal-600 hover:text-teal-700 cursor-pointer"
+                          >
+                            + Log Outcome
+                          </button>
+                        </div>
+                      );
+                    })()}
+
                     {/* Footer: Phone + Contact Pulse + Action Icons */}
                     <div className="relative z-10 flex items-center justify-between pt-1 border-t border-slate-100">
                       <div className="flex flex-col min-w-0">
@@ -646,9 +735,12 @@ export const LeadsDesk: React.FC<LeadsDeskProps> = ({
                         </a>
 
                         <a
-                          href={`tel:${lead.phone}`}
-                          onClick={(e) => e.stopPropagation()}
-                          title="Call"
+                          href={`tel:+91${lead.phone.replace(/\D/g, '').slice(-10)}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setPromptCallLead(lead);
+                          }}
+                          title="Call & Log Outcome"
                           className="h-9 w-9 rounded-xl bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white flex items-center justify-center transition-colors border border-blue-100"
                         >
                           <PhoneCall className="w-4 h-4" />
@@ -683,6 +775,7 @@ export const LeadsDesk: React.FC<LeadsDeskProps> = ({
                     <th className="px-4 py-3">Areas</th>
                     <th className="px-4 py-3">Budget</th>
                     <th className="px-4 py-3">Stage</th>
+                    <th className="px-4 py-3">Latest Call Outcome</th>
                     <th className="px-4 py-3">Owner</th>
                     <th className="px-4 py-3 text-right">Actions</th>
                   </tr>
@@ -728,9 +821,41 @@ export const LeadsDesk: React.FC<LeadsDeskProps> = ({
                           ))}
                         </select>
                       </td>
+                      <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                        {lead.callLogs && lead.callLogs.length > 0 ? (
+                          <div className="space-y-1">
+                            <CallOutcomeBadge outcome={lead.callLogs[0].outcome} />
+                            <p className="text-[10px] text-slate-500 font-medium truncate max-w-[170px]" title={lead.callLogs[0].notes}>
+                              {lead.callLogs[0].notes}
+                            </p>
+                            <p className="text-[9px] text-slate-400">
+                              by {lead.callLogs[0].caller}
+                            </p>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setPromptCallLead(lead)}
+                            className="text-[10px] font-bold text-teal-600 hover:text-teal-700 hover:underline cursor-pointer"
+                          >
+                            + Log Outcome
+                          </button>
+                        )}
+                      </td>
                       <td className="px-4 py-3 text-slate-600 font-semibold">{lead.assignedTo}</td>
                       <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              window.location.href = `tel:+91${lead.phone.replace(/\D/g, '').slice(-10)}`;
+                              setPromptCallLead(lead);
+                            }}
+                            className="p-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100"
+                            title="Call & Log Outcome"
+                          >
+                            <PhoneCall className="w-3.5 h-3.5" />
+                          </button>
                           <button
                             type="button"
                             onClick={() => onOpenSmartMatcherForLead(lead)}
@@ -797,6 +922,18 @@ export const LeadsDesk: React.FC<LeadsDeskProps> = ({
           )}
         </>
       )}
+
+      {/* 1-Tap Call Outcome Prompt Modal (Exact Saraswati Nagri CRM design) */}
+      <CallOutcomePromptModal
+        lead={promptCallLead}
+        isOpen={Boolean(promptCallLead)}
+        onClose={() => setPromptCallLead(null)}
+        onSaveOutcome={async (leadId, log) => {
+          if (onAddCallLog) {
+            await onAddCallLog(leadId, log);
+          }
+        }}
+      />
     </div>
   );
 };
