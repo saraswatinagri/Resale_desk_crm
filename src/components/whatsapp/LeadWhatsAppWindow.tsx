@@ -223,6 +223,8 @@ export const LeadWhatsAppWindow: React.FC<LeadWhatsAppWindowProps> = ({
 
       if (!res.success) {
         toast.error('Could not save WhatsApp message to database');
+      } else if (res.realSent) {
+        toast.success('Delivered to WhatsApp network & archived in CRM!');
       } else {
         toast.success('WhatsApp message logged & synced with Saraswati Nagri CRM');
       }
@@ -454,6 +456,7 @@ export const LeadWhatsAppWindow: React.FC<LeadWhatsAppWindowProps> = ({
             onClick={handleSend}
             disabled={sending || !chatMessage.trim()}
             className="w-10 h-10 bg-[#00a884] text-white rounded-full flex items-center justify-center hover:bg-[#008f72] shadow-sm disabled:opacity-40 disabled:cursor-not-allowed shrink-0 transition-colors cursor-pointer mb-0.5"
+            title="Send in CRM via WhatsApp Gateway"
             aria-label="Send WhatsApp message"
           >
             {sending ? (
@@ -462,6 +465,16 @@ export const LeadWhatsAppWindow: React.FC<LeadWhatsAppWindowProps> = ({
               <Send className="w-4 h-4 ml-0.5" />
             )}
           </button>
+
+          <a
+            href={`https://wa.me/91${phone.replace(/\D/g, '').slice(-10)}?text=${encodeURIComponent(chatMessage.trim() || 'Namaste')}`}
+            target="_blank"
+            rel="noreferrer"
+            title="Launch in Native WhatsApp / Web"
+            className="w-10 h-10 bg-white hover:bg-slate-100 border border-slate-200 text-green-700 rounded-full flex items-center justify-center shadow-xs shrink-0 transition-colors cursor-pointer mb-0.5"
+          >
+            <ExternalLink className="w-4 h-4" />
+          </a>
         </div>
       </div>
     </div>

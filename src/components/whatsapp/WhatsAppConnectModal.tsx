@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import {
   fetchWhatsAppSessions,
+  requestWhatsAppInstanceQr,
   WhatsAppSession,
 } from '../../services/whatsappService';
 import { useAuth } from '../../lib/auth-context';
@@ -39,6 +40,36 @@ export const WhatsAppConnectModal: React.FC<WhatsAppConnectModalProps> = ({
   const [syncing, setSyncing] = useState<boolean>(false);
   const [testNumber, setTestNumber] = useState<string>('');
   const [testStatus, setTestStatus] = useState<string | null>(null);
+  const [showQrBox, setShowQrBox] = useState<boolean>(false);
+  const [qrCodeData, setQrCodeData] = useState<string | null>(null);
+  const [pairingCode, setPairingCode] = useState<string | null>(null);
+  const [loadingQr, setLoadingQr] = useState<boolean>(false);
+  const [qrMessage, setQrMessage] = useState<string | null>(null);
+
+  const handleFetchQr = async (instanceName?: string) => {
+    setShowQrBox(true);
+    setLoadingQr(true);
+    setQrMessage(null);
+    try {
+      const targetInstance = instanceName || activeSession?.instanceName || 'agent_dbc71212-d38b-40cc-8df2-4a99828ff449';
+      const res = await requestWhatsAppInstanceQr(targetInstance);
+      if (res.qrCode) {
+        setQrCodeData(res.qrCode);
+      }
+      if (res.pairingCode) {
+        setPairingCode(res.pairingCode);
+      }
+      if (res.error) {
+        setQrMessage(res.error);
+      } else if (!res.qrCode && !res.pairingCode) {
+        setQrMessage('Instance is already connected or awaiting handshake.');
+      }
+    } catch (err: any) {
+      setQrMessage(err.message || 'Could not fetch QR code');
+    } finally {
+      setLoadingQr(false);
+    }
+  };
 
   const loadSessions = useCallback(async () => {
     setLoading(true);
@@ -238,6 +269,61 @@ export const WhatsAppConnectModal: React.FC<WhatsAppConnectModalProps> = ({
                     );
                   })}
                 </div>
+              </div>
+
+              {/* QR Code Handset Connection / Pairing Box */}
+              <div className="p-3.5 rounded-2xl border border-emerald-200 bg-emerald-50/50 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-bold text-slate-800 text-xs flex items-center gap-1.5">
+                      <QrCode className="w-3.5 h-3.5 text-emerald-600" />
+                      Pair Agent Handset (Evolution API QR Code)
+                    </h4>
+                    <p className="text-[10px] text-slate-500 mt-0.5">
+                      Scan with WhatsApp Linked Devices on your phone to connect your personal line.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleFetchQr()}
+                    disabled={loadingQr}
+                    className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition-colors shadow-xs flex items-center gap-1 cursor-pointer shrink-0"
+                  >
+                    {loadingQr ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <QrCode className="w-3.5 h-3.5" />}
+                    <span>{showQrBox ? 'Refresh QR' : 'Pair Line QR'}</span>
+                  </button>
+                </div>
+
+                {showQrBox && (
+                  <div className="p-3 bg-white rounded-xl border border-emerald-100 flex flex-col items-center justify-center text-center space-y-2">
+                    {loadingQr ? (
+                      <div className="py-6 flex items-center gap-2 text-slate-500 font-medium">
+                        <Loader2 className="w-5 h-5 animate-spin text-emerald-600" />
+                        <span>Requesting pairing QR from Evolution API...</span>
+                      </div>
+                    ) : qrCodeData ? (
+                      <div className="space-y-2">
+                        <img
+                          src={qrCodeData.startsWith('data:') ? qrCodeData : `data:image/png;base64,${qrCodeData}`}
+                          alt="WhatsApp Pairing QR Code"
+                          className="w-48 h-48 mx-auto border border-slate-200 rounded-lg shadow-xs"
+                        />
+                        <p className="text-[11px] font-bold text-slate-700">
+                          Open WhatsApp → Linked Devices → Link a Device → Scan this QR
+                        </p>
+                      </div>
+                    ) : pairingCode ? (
+                      <div className="space-y-1">
+                        <p className="text-[10px] text-slate-500 uppercase font-black tracking-wider">Pairing Code</p>
+                        <p className="text-lg font-mono font-black text-emerald-700 tracking-widest">{pairingCode}</p>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-slate-600 font-medium">
+                        {qrMessage || 'Line is active and connected in Supabase!'}
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Quick WhatsApp Test & Launch */}

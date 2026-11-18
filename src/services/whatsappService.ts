@@ -33,7 +33,7 @@ export interface WhatsAppMessageItem {
   createdAt: string;
 }
 
-function formatPhoneDisplay(raw?: string | null): string {
+export function formatPhoneDisplay(raw?: string | null): string {
   if (!raw) return '';
   const digits = raw.replace(/\D/g, '');
   if (digits.length === 12 && digits.startsWith('91')) {
@@ -43,6 +43,28 @@ function formatPhoneDisplay(raw?: string | null): string {
     return `+91 ${digits.slice(0, 5)} ${digits.slice(5)}`;
   }
   return raw.startsWith('+') ? raw : `+${digits}`;
+}
+
+export function getEvolutionConfig() {
+  const apiUrl = (
+    import.meta.env.VITE_EVOLUTION_API_URL ||
+    (typeof window !== 'undefined' && (window as any).__ENV__?.EVOLUTION_API_URL) ||
+    ''
+  ).replace(/\/+$/, '');
+
+  const apiKey =
+    import.meta.env.VITE_EVOLUTION_API_KEY ||
+    (typeof window !== 'undefined' && (window as any).__ENV__?.EVOLUTION_API_KEY) ||
+    '';
+
+  const provider = import.meta.env.VITE_WHATSAPP_PROVIDER || 'evolution';
+
+  return {
+    apiUrl,
+    apiKey,
+    provider,
+    isConfigured: Boolean(apiUrl && apiKey),
+  };
 }
 
 /**
@@ -81,7 +103,7 @@ export async function fetchWhatsAppSessions(): Promise<{
         agentId: row.agent_id,
         agentName: isOffice ? 'Saraswati Nagri (Office Master)' : (prof?.full_name || 'Staff Line'),
         agentRole: isOffice ? 'Company Master Line' : (prof?.role || 'Sales Executive'),
-        instanceName: row.instance_name,
+        instanceName: row.instance_name || `agent_${row.agent_id}`,
         provider: row.provider || 'evolution',
         phoneNumber: row.phone_number,
         formattedPhone: formatPhoneDisplay(row.phone_number),
@@ -92,7 +114,7 @@ export async function fetchWhatsAppSessions(): Promise<{
       };
     });
 
-    // Determine primary active session (Office Master Line preferred if connected, or first connected agent)
+    // Primary active session: Office Master Line if connected, or first connected session
     const officeConnected = sessions.find((s) => s.isOfficeMaster && s.status === 'connected');
     const firstConnected = sessions.find((s) => s.status === 'connected');
     const activeSession = officeConnected || firstConnected || sessions[0] || null;
@@ -159,11 +181,64 @@ export async function fetchLeadWhatsAppMessages(
 }
 
 /**
- * Log and dispatch a WhatsApp message to a lead.
- * 1. Archives outbound message in public.whatsapp_messages
- * 2. Writes timeline entry in public.lead_interactions
- * 3. Updates lead last_contacted_at and bumps interaction_count
- * 4. Returns wa.me deep link for seamless handoff
+ * Request real QR code or pairing code from Evolution API
+ */
+export async function requestWhatsAppInstanceQr(instanceName: string): Promise<{
+  qrCode?: string;
+  pairingCode?: string;
+  state?: string;
+  error?: string;
+}> {
+  // 1. Try serverless endpoint first
+  try {
+    const res = await fetch(`/api/whatsapp/connect?instanceName=${encodeURIComponent(instanceName)}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.qrCode || data.pairingCode) {
+        return {
+          qrCode: data.qrCode,
+          pairingCode: data.pairingCode,
+          state: data.state,
+        };
+      }
+    }
+  } catch {
+    // Proceed to direct client attempt
+  }
+
+  // 2. Direct Evolution API attempt if configured in client env
+  const { apiUrl, apiKey, isConfigured } = getEvolutionConfig();
+  if (!isConfigured) {
+    return { error: 'Evolution API not configured. Please set VITE_EVOLUTION_API_URL and VITE_EVOLUTION_API_KEY.' };
+  }
+
+  try {
+    const evoRes = await fetch(`${apiUrl}/instance/connect/${encodeURIComponent(instanceName)}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: apiKey,
+      },
+    });
+
+    const data = await evoRes.json();
+    return {
+      qrCode: data?.base64 || data?.qrcode?.base64 || data?.code || null,
+      pairingCode: data?.pairingCode || null,
+      state: data?.state || (evoRes.ok ? 'connecting' : 'disconnected'),
+    };
+  } catch (err: any) {
+    return { error: err.message || 'Failed to fetch QR code from Evolution API' };
+  }
+}
+
+/**
+ * Log and dispatch a real WhatsApp message to a lead.
+ * 1. Dispatches through real Evolution API gateway (serverless route or direct)
+ * 2. Archives outbound message in public.whatsapp_messages
+ * 3. Writes timeline entry in public.lead_interactions
+ * 4. Updates lead last_contacted_at and bumps interaction_count
+ * 5. Returns wa.me deep link for seamless handoff
  */
 export async function sendLeadWhatsAppMessage(params: {
   leadId: string;
@@ -175,32 +250,95 @@ export async function sendLeadWhatsAppMessage(params: {
   instanceName?: string;
 }): Promise<{
   success: boolean;
+  realSent: boolean;
+  messageId: string;
   waLink: string;
   error?: string;
 }> {
-  const { leadId, phone, text, senderAgentId, senderName, instanceName } = params;
+  const { leadId, phone, text, senderAgentId, instanceName } = params;
   const digits = phone.replace(/\D/g, '');
   const phone10 = digits.slice(-10);
+  const recipient = `91${phone10}`;
   const waLink = generateWhatsAppLink(phone, text);
+  const effectiveInstance = instanceName || 'agent_dbc71212-d38b-40cc-8df2-4a99828ff449'; // Default Office Master Line
 
+  let realSent = false;
+  let waMessageId = `RD_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+
+  // Step A: Attempt serverless /api/whatsapp/send
+  try {
+    const apiRes = await fetch('/api/whatsapp/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        leadId,
+        phone,
+        text,
+        instanceName: effectiveInstance,
+        senderAgentId,
+      }),
+    });
+
+    if (apiRes.ok) {
+      const data = await apiRes.json();
+      if (data.ok) {
+        realSent = Boolean(data.delivered);
+        if (data.messageId) waMessageId = data.messageId;
+        return {
+          success: true,
+          realSent,
+          messageId: waMessageId,
+          waLink: data.waLink || waLink,
+        };
+      }
+    }
+  } catch {
+    // Fall back to direct dispatch and database write
+  }
+
+  // Step B: Direct Evolution API call if configured
+  const { apiUrl, apiKey, isConfigured } = getEvolutionConfig();
+  if (isConfigured) {
+    try {
+      const evoRes = await fetch(`${apiUrl}/message/sendText/${encodeURIComponent(effectiveInstance)}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: apiKey,
+        },
+        body: JSON.stringify({
+          number: recipient,
+          text: text.trim(),
+        }),
+      });
+
+      if (evoRes.ok) {
+        const evoData = await evoRes.json();
+        realSent = true;
+        waMessageId = evoData?.key?.id || evoData?.message?.key?.id || evoData?.id || waMessageId;
+      }
+    } catch (evoErr) {
+      console.warn('Direct Evolution API send warning:', evoErr);
+    }
+  }
+
+  // Step C: Archive and sync with Supabase
   if (!supabaseDb) {
-    return { success: true, waLink };
+    return { success: true, realSent, messageId: waMessageId, waLink };
   }
 
   try {
     const now = new Date().toISOString();
-    const effectiveInstance = instanceName || 'agent_dbc71212-d38b-40cc-8df2-4a99828ff449';
-    const waMessageId = `RD_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
 
     // 1. Insert into public.whatsapp_messages archive
     await supabaseDb.from('whatsapp_messages').insert({
       provider: 'evolution',
       instance_name: effectiveInstance,
-      chat_jid: `91${phone10}@s.whatsapp.net`,
+      chat_jid: `${recipient}@s.whatsapp.net`,
       wa_message_id: waMessageId,
       direction: 'outbound',
       from_number: '918956040220',
-      to_number: `91${phone10}`,
+      to_number: recipient,
       text: text.trim(),
       is_group: false,
       message_timestamp: now,
@@ -209,35 +347,37 @@ export async function sendLeadWhatsAppMessage(params: {
     });
 
     // 2. Insert into public.lead_interactions
-    await supabaseDb.from('lead_interactions').insert({
-      lead_id: leadId,
-      type: 'whatsapp',
-      content: text.trim(),
-      outcome: 'whatsapp_sent',
-      created_by: senderAgentId || null,
-      created_at: now,
-    });
+    if (leadId) {
+      await supabaseDb.from('lead_interactions').insert({
+        lead_id: leadId,
+        type: 'whatsapp',
+        content: text.trim(),
+        outcome: realSent ? 'whatsapp_delivered' : 'whatsapp_sent',
+        created_by: senderAgentId || null,
+        created_at: now,
+      });
 
-    // 3. Update public.leads
-    const { data: leadRow } = await supabaseDb
-      .from('leads')
-      .select('interaction_count')
-      .eq('id', leadId)
-      .maybeSingle();
+      // 3. Update public.leads
+      const { data: leadRow } = await supabaseDb
+        .from('leads')
+        .select('interaction_count')
+        .eq('id', leadId)
+        .maybeSingle();
 
-    const currentCount = Number(leadRow?.interaction_count || 0);
-    await supabaseDb
-      .from('leads')
-      .update({
-        last_contacted_at: now,
-        interaction_count: currentCount + 1,
-        updated_at: now,
-      })
-      .eq('id', leadId);
+      const currentCount = Number(leadRow?.interaction_count || 0);
+      await supabaseDb
+        .from('leads')
+        .update({
+          last_contacted_at: now,
+          interaction_count: currentCount + 1,
+          updated_at: now,
+        })
+        .eq('id', leadId);
+    }
 
-    return { success: true, waLink };
+    return { success: true, realSent, messageId: waMessageId, waLink };
   } catch (err: any) {
     console.warn('WhatsApp database sync warning:', err);
-    return { success: true, waLink, error: err.message };
+    return { success: true, realSent, messageId: waMessageId, waLink, error: err.message };
   }
 }
