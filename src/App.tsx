@@ -15,6 +15,7 @@ import { DataToolsModal } from './components/common/DataToolsModal';
 import { DealCalculatorModal } from './components/tools/DealCalculatorModal';
 import { WhatsAppTemplatesModal } from './components/tools/WhatsAppTemplatesModal';
 import { WhatsAppConnectModal } from './components/whatsapp/WhatsAppConnectModal';
+import { LeadWhatsAppWindow } from './components/whatsapp/LeadWhatsAppWindow';
 import { storage } from './services/storage';
 import { useAuth } from './lib/auth-context';
 import {
@@ -61,6 +62,7 @@ export function App() {
   const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
   const [isTemplatesOpen, setIsTemplatesOpen] = useState(false);
   const [isWhatsAppConnectOpen, setIsWhatsAppConnectOpen] = useState(false);
+  const [whatsAppLead, setWhatsAppLead] = useState<ResaleLead | null>(null);
 
   const [activeLead, setActiveLead] = useState<ResaleLead | null>(null);
   const [activeProperty, setActiveProperty] = useState<ResaleProperty | null>(null);
@@ -415,7 +417,6 @@ export function App() {
           onOpenAddProperty={() => setIsAddPropertyOpen(true)}
           onOpenCalculator={() => setIsCalculatorOpen(true)}
           onOpenTemplates={() => setIsTemplatesOpen(true)}
-          onOpenWhatsAppConnect={() => setIsWhatsAppConnectOpen(true)}
           onRefreshSync={reloadData}
           isSyncing={isSyncing}
           isLiveSupabase={isLiveSupabase}
@@ -468,6 +469,7 @@ export function App() {
               onUpdateLeadStage={handleUpdateLeadStage}
               onDeleteLead={handleDeleteLead}
               onOpenSmartMatcherForLead={handleOpenSmartMatcherForLead}
+              onOpenWhatsAppChat={setWhatsAppLead}
               onExportCsv={handleExportLeadsCsv}
               onAddCallLog={handleAddCallLog}
             />
@@ -535,6 +537,21 @@ export function App() {
           onUpdateStage={handleUpdateLeadStage}
           onAddCallLog={handleAddCallLog}
           onScheduleVisit={handleScheduleVisit}
+          onOpenWhatsAppChat={setWhatsAppLead}
+        />
+      )}
+
+      {/* Full in-CRM WhatsApp Window (Exact Saraswati Nagri CRM overlay) */}
+      {whatsAppLead && (
+        <LeadWhatsAppWindow
+          leadName={whatsAppLead.name}
+          leadId={whatsAppLead.id}
+          phone={whatsAppLead.whatsapp || whatsAppLead.phone}
+          stage={whatsAppLead.rawStatus || whatsAppLead.stage}
+          projectName={whatsAppLead.plotInterest || 'Nagpur Properties · Resale Desk'}
+          onClose={() => setWhatsAppLead(null)}
+          onConnect={() => setIsWhatsAppConnectOpen(true)}
+          variant="overlay"
         />
       )}
 

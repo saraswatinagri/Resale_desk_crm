@@ -39,6 +39,7 @@ interface LeadsDeskProps {
   onUpdateLeadStage: (leadId: string, stage: LeadStage) => void;
   onDeleteLead: (leadId: string) => void;
   onOpenSmartMatcherForLead: (lead: ResaleLead) => void;
+  onOpenWhatsAppChat?: (lead: ResaleLead) => void;
   onExportCsv?: () => void;
   onAddCallLog?: (leadId: string, log: Omit<CallLog, 'id' | 'date'>) => Promise<void>;
 }
@@ -127,6 +128,7 @@ export const LeadsDesk: React.FC<LeadsDeskProps> = ({
   onUpdateLeadStage,
   onDeleteLead,
   onOpenSmartMatcherForLead,
+  onOpenWhatsAppChat,
   onExportCsv,
   onAddCallLog,
 }) => {
@@ -720,19 +722,19 @@ export const LeadsDesk: React.FC<LeadsDeskProps> = ({
                           <span className="hidden sm:inline">Match</span>
                         </button>
 
-                        <a
-                          href={generateWhatsAppLink(
-                            lead.whatsapp || lead.phone,
-                            `Namaste ${lead.name} ji, this is from Nagpur Properties & Saraswati Nagri Resale Desk.`
-                          )}
-                          target="_blank"
-                          rel="noreferrer"
-                          onClick={(e) => e.stopPropagation()}
-                          title="WhatsApp"
-                          className="h-9 w-9 rounded-xl bg-green-50 text-green-600 hover:bg-green-600 hover:text-white flex items-center justify-center transition-colors border border-green-100"
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (onOpenWhatsAppChat) {
+                              onOpenWhatsAppChat(lead);
+                            }
+                          }}
+                          title="Open WhatsApp in CRM (Saraswati Nagri)"
+                          className="h-9 w-9 rounded-xl bg-green-50 text-green-600 hover:bg-green-600 hover:text-white flex items-center justify-center transition-colors border border-green-100 cursor-pointer"
                         >
                           <MessageCircle className="w-4 h-4" />
-                        </a>
+                        </button>
 
                         <a
                           href={`tel:+91${lead.phone.replace(/\D/g, '').slice(-10)}`}

@@ -43,6 +43,7 @@ interface LeadDetailModalProps {
   onUpdateStage: (leadId: string, stage: LeadStage) => void;
   onAddCallLog: (leadId: string, log: Omit<CallLog, 'id' | 'date'>) => void;
   onScheduleVisit: (leadId: string, visit: Omit<ScheduledVisit, 'id'>) => void;
+  onOpenWhatsAppChat?: (lead: ResaleLead) => void;
 }
 
 // Saraswati Nagri CRM Stage Questions
@@ -62,7 +63,8 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
   onClose,
   onUpdateStage,
   onAddCallLog,
-  onScheduleVisit
+  onScheduleVisit,
+  onOpenWhatsAppChat,
 }) => {
   const { user, profiles } = useAuth();
   if (!isOpen || !lead) return null;
@@ -206,15 +208,21 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
               <Phone className="w-4 h-4" />
             </a>
 
-            <a
-              href={generateWhatsAppLink(lead.whatsapp || lead.phone, `Namaste ${lead.name} ji, regarding your property requirement in Nagpur:`)}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 font-bold transition-colors"
+            <button
+              type="button"
+              onClick={() => {
+                if (onOpenWhatsAppChat) {
+                  onOpenWhatsAppChat(lead);
+                } else {
+                  setActiveTab('whatsapp');
+                }
+              }}
+              title="Open WhatsApp in CRM (Saraswati Nagri)"
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 font-bold transition-colors cursor-pointer"
             >
               <MessageSquare className="w-4 h-4" />
               <span>WhatsApp</span>
-            </a>
+            </button>
 
             <button
               onClick={onClose}

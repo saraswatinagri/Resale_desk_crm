@@ -17,7 +17,6 @@ interface NavbarProps {
   onOpenAddProperty: () => void;
   onOpenCalculator: () => void;
   onOpenTemplates: () => void;
-  onOpenWhatsAppConnect?: () => void;
   onRefreshSync: () => void;
   isSyncing: boolean;
   isLiveSupabase: boolean;
@@ -32,7 +31,6 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenAddProperty,
   onOpenCalculator,
   onOpenTemplates,
-  onOpenWhatsAppConnect,
   onRefreshSync,
   isSyncing,
   isLiveSupabase,
@@ -85,24 +83,6 @@ export const Navbar: React.FC<NavbarProps> = ({
         >
           <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-teal-600' : ''}`} />
         </button>
-
-        {/* WhatsApp Gateway Status Pill */}
-        {onOpenWhatsAppConnect && (
-          <button
-            type="button"
-            onClick={onOpenWhatsAppConnect}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold transition-colors cursor-pointer shrink-0 shadow-sm"
-            title="Saraswati Nagri WhatsApp Gateway (Click to view connected lines)"
-          >
-            <span className="relative flex w-2 h-2">
-              <span className="absolute inline-flex w-full h-full rounded-full opacity-75 animate-ping bg-emerald-500" />
-              <span className="relative inline-flex w-2 h-2 rounded-full bg-emerald-500" />
-            </span>
-            <MessageSquare className="w-3.5 h-3.5 text-emerald-600" />
-            <span className="hidden md:inline">WhatsApp Connected</span>
-            <span className="md:hidden">WA</span>
-          </button>
-        )}
 
         {/* ADD LEAD (Exact purple pill from admin-dashboard.tsx) */}
         <button
