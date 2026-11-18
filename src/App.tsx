@@ -14,6 +14,7 @@ import { SiteVisitsDesk } from './components/visits/SiteVisitsModal';
 import { DataToolsModal } from './components/common/DataToolsModal';
 import { DealCalculatorModal } from './components/tools/DealCalculatorModal';
 import { WhatsAppTemplatesModal } from './components/tools/WhatsAppTemplatesModal';
+import { WhatsAppConnectModal } from './components/whatsapp/WhatsAppConnectModal';
 import { storage } from './services/storage';
 import { useAuth } from './lib/auth-context';
 import {
@@ -59,6 +60,7 @@ export function App() {
   const [isBackupOpen, setIsBackupOpen] = useState(false);
   const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
   const [isTemplatesOpen, setIsTemplatesOpen] = useState(false);
+  const [isWhatsAppConnectOpen, setIsWhatsAppConnectOpen] = useState(false);
 
   const [activeLead, setActiveLead] = useState<ResaleLead | null>(null);
   const [activeProperty, setActiveProperty] = useState<ResaleProperty | null>(null);
@@ -393,6 +395,7 @@ export function App() {
         onOpenCalculator={() => setIsCalculatorOpen(true)}
         onOpenTemplates={() => setIsTemplatesOpen(true)}
         onOpenBackup={() => setIsBackupOpen(true)}
+        onOpenWhatsAppConnect={() => setIsWhatsAppConnectOpen(true)}
         totalLeads={leads.length}
         totalProperties={properties.length}
         currentUser={user}
@@ -412,6 +415,7 @@ export function App() {
           onOpenAddProperty={() => setIsAddPropertyOpen(true)}
           onOpenCalculator={() => setIsCalculatorOpen(true)}
           onOpenTemplates={() => setIsTemplatesOpen(true)}
+          onOpenWhatsAppConnect={() => setIsWhatsAppConnectOpen(true)}
           onRefreshSync={reloadData}
           isSyncing={isSyncing}
           isLiveSupabase={isLiveSupabase}
@@ -566,6 +570,13 @@ export function App() {
         <WhatsAppTemplatesModal
           isOpen={isTemplatesOpen}
           onClose={() => setIsTemplatesOpen(false)}
+        />
+      )}
+
+      {isWhatsAppConnectOpen && (
+        <WhatsAppConnectModal
+          isOpen={isWhatsAppConnectOpen}
+          onClose={() => setIsWhatsAppConnectOpen(false)}
         />
       )}
     </div>

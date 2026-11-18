@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { 
   X, 
   Phone, 
@@ -14,7 +14,10 @@ import {
   FileText,
   User,
   History,
-  AlertCircle
+  AlertCircle,
+  Loader2,
+  ExternalLink,
+  RefreshCw
 } from 'lucide-react';
 import { ResaleLead, ResaleProperty, LeadStage, CallLog, ScheduledVisit } from '../../types/crm';
 import { 
@@ -26,6 +29,11 @@ import {
 import { getMatchingPropertiesForLead } from '../../utils/matcher';
 import { LEAD_STAGES, SALES_AGENTS } from '../../data/constants';
 import { useAuth } from '../../lib/auth-context';
+import { 
+  fetchLeadWhatsAppMessages, 
+  sendLeadWhatsAppMessage, 
+  type WhatsAppMessageItem 
+} from '../../services/whatsappService';
 
 interface LeadDetailModalProps {
   lead: ResaleLead | null;
@@ -59,7 +67,13 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
   const { user, profiles } = useAuth();
   if (!isOpen || !lead) return null;
 
-  const [activeTab, setActiveTab] = useState<'matches' | 'calls' | 'visits' | 'details'>('matches');
+  const [activeTab, setActiveTab] = useState<'matches' | 'calls' | 'visits' | 'details' | 'whatsapp'>('matches');
+
+  // WhatsApp chat state
+  const [waMessages, setWaMessages] = useState<WhatsAppMessageItem[]>([]);
+  const [waLoading, setWaLoading] = useState(false);
+  const [waInputText, setWaInputText] = useState('');
+  const [waSending, setWaSending] = useState(false);
 
   const teamAgents = useMemo(() => {
     const list: string[] = [];
@@ -86,6 +100,41 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
   const [visitDate, setVisitDate] = useState(new Date().toISOString().split('T')[0]);
   const [visitTime, setVisitTime] = useState('11:00 AM');
   const [visitAgent, setVisitAgent] = useState(defaultAgent);
+
+  // Load WhatsApp messages from public.whatsapp_messages
+  const loadWhatsAppChat = useCallback(async () => {
+    if (!lead) return;
+    setWaLoading(true);
+    const { messages } = await fetchLeadWhatsAppMessages(lead.id, lead.phone);
+    setWaMessages(messages);
+    setWaLoading(false);
+  }, [lead]);
+
+  useEffect(() => {
+    if (activeTab === 'whatsapp') {
+      loadWhatsAppChat();
+    }
+  }, [activeTab, loadWhatsAppChat]);
+
+  const handleSendWhatsAppSubmit = async (textToSend?: string) => {
+    const message = (textToSend || waInputText).trim();
+    if (!message || !lead) return;
+    setWaSending(true);
+    const res = await sendLeadWhatsAppMessage({
+      leadId: lead.id,
+      phone: lead.whatsapp || lead.phone,
+      leadName: lead.name,
+      text: message,
+      senderAgentId: user?.id,
+      senderName: user?.fullName,
+    });
+    if (res.waLink) {
+      window.open(res.waLink, '_blank', 'noopener,noreferrer');
+    }
+    setWaInputText('');
+    setWaSending(false);
+    await loadWhatsAppChat();
+  };
 
   // Calculate matching properties
   const matches = getMatchingPropertiesForLead(lead, properties);
@@ -254,6 +303,19 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
           >
             <FileText className="w-3.5 h-3.5" />
             <span>Requirement Profile</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('whatsapp')}
+            className={`pb-2.5 border-b-2 flex items-center gap-1.5 transition-all ${
+              activeTab === 'whatsapp'
+                ? 'border-emerald-600 text-emerald-700 font-extrabold'
+                : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <MessageSquare className="w-3.5 h-3.5 text-emerald-600" />
+            <span>WhatsApp Messages</span>
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
           </button>
         </div>
 
@@ -600,6 +662,139 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
                   </p>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* TAB 5: WHATSAPP CHAT THREAD */}
+          {activeTab === 'whatsapp' && (
+            <div className="space-y-4">
+              {/* WhatsApp Active Line Bar */}
+              <div className="p-3 rounded-2xl bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200/80 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-emerald-500 text-white flex items-center justify-center font-bold">
+                    <MessageSquare className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-slate-800 text-xs">
+                      Saraswati Nagri WhatsApp Gateway
+                    </p>
+                    <p className="text-[10px] text-slate-500">
+                      Sending via <strong>+91 89560 40220</strong> (Office Master Line) • Client: <strong>{lead.phone}</strong>
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={loadWhatsAppChat}
+                  disabled={waLoading}
+                  className="px-2.5 py-1 rounded-xl bg-white border border-emerald-200 text-emerald-800 font-bold text-[10px] hover:bg-emerald-50 transition-colors flex items-center gap-1 cursor-pointer"
+                >
+                  <RefreshCw className={`w-3 h-3 ${waLoading ? 'animate-spin' : ''}`} />
+                  <span>Refresh Chat</span>
+                </button>
+              </div>
+
+              {/* Quick Reply Pitch Chips */}
+              <div className="space-y-1">
+                <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                  Quick High-Converting Resale Templates
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    { label: '👋 Welcome Intro', text: `Namaste ${lead.name} ji,\n\nThank you for connecting with *Nagpur Properties & Saraswati Nagri Resale Desk*.\n\nWe noted your requirement for ${lead.intent} in Nagpur (Preferred: ${lead.preferredLocalities.join(', ') || 'Nagpur'}, Budget: ${lead.budgetDisplay}).\n\nWe have verified clear-title properties available with NMRDA sanction and bank loan pre-approvals.\n\nWhen would be a good time for a brief 2-minute call?\n\n- ${user?.fullName || 'Resale Desk Team'} | 📱 ${user?.phone || '8956040220'}` },
+                    { label: '📅 Site Visit Confirmation', text: `Namaste ${lead.name} ji,\n\nYour property site visit has been scheduled!\n\n📍 Location: ${lead.preferredLocalities[0] || 'Nagpur'}\n👤 Field Incharge: ${user?.fullName || 'Resale Desk'}\n\nOur executive will meet you at the property. Please feel free to call if you need directions.\n\n- Nagpur Properties & Saraswati Nagri` },
+                    { label: '🏷️ Price Update & Offer', text: `Namaste ${lead.name} ji,\n\nRegarding the property you viewed in ${lead.preferredLocalities[0] || 'Nagpur'}:\n\nWe spoke to the owner and they are open to an attractive deal around your target budget of ${lead.budgetDisplay}.\n\nShall we arrange a quick sit-down meeting at our office today to finalize?\n\n- Resale Desk` },
+                    { label: '📄 Documents Checklist', text: `Hello ${lead.name} ji,\n\nFor NMRDA verified properties and instant loan approval from SBI / HDFC, please keep ready:\n1. PAN & Aadhaar\n2. 3 Months Salary Slips\n3. 6 Months Bank Statement\n\nOur legal desk is ready to prepare the 30-year search report for you.\n\n- Saraswati Nagri Legal Desk` },
+                  ].map((chip) => (
+                    <button
+                      key={chip.label}
+                      type="button"
+                      onClick={() => setWaInputText(chip.text)}
+                      className="px-2.5 py-1 rounded-full border border-slate-200 bg-white hover:bg-emerald-50 hover:border-emerald-300 text-slate-700 text-[10px] font-bold transition-colors cursor-pointer"
+                    >
+                      {chip.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Chat Thread Box */}
+              <div className="rounded-2xl border border-slate-200 bg-slate-50/50 p-4 min-h-[200px] max-h-[300px] overflow-y-auto space-y-2.5">
+                {waLoading ? (
+                  <div className="flex flex-col items-center justify-center p-8 text-slate-400 gap-2">
+                    <Loader2 className="w-5 h-5 animate-spin text-emerald-600" />
+                    <span className="text-xs font-semibold">Loading conversation thread from Supabase…</span>
+                  </div>
+                ) : waMessages.length === 0 ? (
+                  <div className="p-8 text-center text-slate-400 text-xs space-y-1">
+                    <MessageSquare className="w-8 h-8 text-slate-300 mx-auto" />
+                    <p className="font-bold text-slate-600">No previous WhatsApp chat logged for this lead</p>
+                    <p className="text-[11px]">Type a message below or select a quick template to start chatting.</p>
+                  </div>
+                ) : (
+                  waMessages.map((msg) => {
+                    const isOutbound = msg.direction === 'outbound';
+                    return (
+                      <div
+                        key={msg.id}
+                        className={`flex flex-col ${isOutbound ? 'items-end' : 'items-start'}`}
+                      >
+                        <div
+                          className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 shadow-sm text-xs space-y-1 ${
+                            isOutbound
+                              ? 'bg-emerald-600 text-white rounded-br-none'
+                              : 'bg-white text-slate-800 border border-slate-200 rounded-bl-none'
+                          }`}
+                        >
+                          <p className="whitespace-pre-wrap leading-relaxed">{msg.text}</p>
+                          <div className={`flex items-center justify-end gap-1 text-[9px] ${
+                            isOutbound ? 'text-emerald-100' : 'text-slate-400'
+                          }`}>
+                            <span>{new Date(msg.messageTimestamp).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>
+                            {isOutbound && <span>✓✓</span>}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              {/* Chat Input & Send Form */}
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleSendWhatsAppSubmit();
+                }}
+                className="space-y-2"
+              >
+                <div className="relative">
+                  <textarea
+                    rows={3}
+                    placeholder="Type WhatsApp message to client..."
+                    value={waInputText}
+                    onChange={(e) => setWaInputText(e.target.value)}
+                    className="w-full p-3 text-xs rounded-2xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] text-slate-400 font-medium">
+                    Archives to whatsapp_messages &amp; logs interaction
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleSendWhatsAppSubmit()}
+                      disabled={waSending || !waInputText.trim()}
+                      className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
+                    >
+                      {waSending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                      <span>Send &amp; Launch WhatsApp</span>
+                    </button>
+                  </div>
+                </div>
+              </form>
             </div>
           )}
 

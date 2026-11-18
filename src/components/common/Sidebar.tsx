@@ -6,6 +6,7 @@ import {
   MapPin,
   Calculator,
   MessageSquare,
+  MessageCircle,
   LayoutDashboard,
   PanelLeftClose,
   PanelLeftOpen,
@@ -23,6 +24,7 @@ interface SidebarProps {
   onOpenCalculator: () => void;
   onOpenTemplates: () => void;
   onOpenBackup: () => void;
+  onOpenWhatsAppConnect?: () => void;
   totalLeads: number;
   totalProperties: number;
   currentUser: CrmUserProfile;
@@ -38,6 +40,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenCalculator,
   onOpenTemplates,
   onOpenBackup,
+  onOpenWhatsAppConnect,
   totalLeads,
   totalProperties,
   currentUser,
@@ -181,6 +184,29 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </span>
             )}
           </button>
+
+          {onOpenWhatsAppConnect && (
+            <button
+              type="button"
+              onClick={onOpenWhatsAppConnect}
+              className={`w-full group relative flex items-center rounded-xl transition-all font-semibold text-slate-400 hover:text-white hover:bg-slate-800 cursor-pointer ${
+                collapsed ? 'justify-center p-3' : 'gap-3 py-2.5 px-4 text-left'
+              }`}
+            >
+              <MessageCircle className="w-4 h-4 shrink-0 text-emerald-400" />
+              {!collapsed && (
+                <div className="flex items-center justify-between flex-1 min-w-0">
+                  <span className="text-xs">WhatsApp Gateway</span>
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                </div>
+              )}
+              {collapsed && (
+                <span className="pointer-events-none absolute left-full ml-3 z-50 whitespace-nowrap rounded-lg bg-slate-800 border border-slate-700 px-2.5 py-1.5 text-xs font-semibold text-white shadow-xl opacity-0 group-hover:opacity-100 transition-opacity">
+                  WhatsApp Gateway (+91 89560 40220)
+                </span>
+              )}
+            </button>
+          )}
 
           <button
             type="button"
