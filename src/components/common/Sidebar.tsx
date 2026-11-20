@@ -11,6 +11,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   LogOut,
+  Globe
 } from 'lucide-react';
 import type { CrmUserProfile } from '../../types/crm';
 
@@ -25,6 +26,7 @@ interface SidebarProps {
   onOpenTemplates: () => void;
   onOpenBackup: () => void;
   onOpenWhatsAppConnect?: () => void;
+  onOpenWebsiteApi?: () => void;
   totalLeads: number;
   totalProperties: number;
   currentUser: CrmUserProfile;
@@ -41,6 +43,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenTemplates,
   onOpenBackup,
   onOpenWhatsAppConnect,
+  onOpenWebsiteApi,
   totalLeads,
   totalProperties,
   currentUser,
@@ -203,6 +206,31 @@ export const Sidebar: React.FC<SidebarProps> = ({
               {collapsed && (
                 <span className="pointer-events-none absolute left-full ml-3 z-50 whitespace-nowrap rounded-lg bg-slate-800 border border-slate-700 px-2.5 py-1.5 text-xs font-semibold text-white shadow-xl opacity-0 group-hover:opacity-100 transition-opacity">
                   WhatsApp Gateway (+91 89560 40220)
+                </span>
+              )}
+            </button>
+          )}
+
+          {onOpenWebsiteApi && (
+            <button
+              type="button"
+              onClick={onOpenWebsiteApi}
+              className={`w-full group relative flex items-center rounded-xl transition-all font-semibold text-slate-400 hover:text-white hover:bg-slate-800 cursor-pointer ${
+                collapsed ? 'justify-center p-3' : 'gap-3 py-2.5 px-4 text-left'
+              }`}
+            >
+              <Globe className="w-4 h-4 shrink-0 text-cyan-400" />
+              {!collapsed && (
+                <div className="flex items-center justify-between flex-1 min-w-0">
+                  <span className="text-xs">Website &amp; API Connect</span>
+                  <span className="text-[9px] font-black uppercase tracking-wider bg-cyan-950 text-cyan-400 border border-cyan-800 px-1.5 py-0.2 rounded">
+                    REST
+                  </span>
+                </div>
+              )}
+              {collapsed && (
+                <span className="pointer-events-none absolute left-full ml-3 z-50 whitespace-nowrap rounded-lg bg-slate-800 border border-slate-700 px-2.5 py-1.5 text-xs font-semibold text-white shadow-xl opacity-0 group-hover:opacity-100 transition-opacity">
+                  Website &amp; API Connect
                 </span>
               )}
             </button>

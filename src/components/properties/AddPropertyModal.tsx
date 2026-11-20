@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   X, 
   Building2, 
@@ -26,7 +26,10 @@ import {
   Camera,
   Check,
   Loader2,
-  FileText
+  FileText,
+  MessageSquare,
+  Zap,
+  ArrowDown
 } from 'lucide-react';
 import { 
   ResaleProperty, 
@@ -48,11 +51,14 @@ import {
   PHOTO_LABELS, 
   processMultipleImageFiles 
 } from '../../utils/imageUpload';
+import { parseWhatsAppPropertyMessage } from '../../utils/whatsappPropertyParser';
 
 interface AddPropertyModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSaveProperty: (property: Omit<ResaleProperty, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void> | void;
+  initialPrefill?: Partial<ResaleProperty> | null;
+  defaultOpenWhatsAppImport?: boolean;
 }
 
 // EXACT MULTI-STEPPER DEFINITIONS (MATCHING SARASWATI NAGRI CRM)
@@ -77,13 +83,20 @@ const SAMPLE_PRESET_IMAGES = [
 export const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
   isOpen,
   onClose,
-  onSaveProperty
+  onSaveProperty,
+  initialPrefill,
+  defaultOpenWhatsAppImport = false
 }) => {
   if (!isOpen) return null;
 
   const [step, setStep] = useState(1);
   const [errorMsg, setErrorMsg] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+
+  // WhatsApp Message Fast-Importer State
+  const [isWhatsAppImporterOpen, setIsWhatsAppImporterOpen] = useState(Boolean(defaultOpenWhatsAppImport || initialPrefill));
+  const [whatsappRawText, setWhatsappRawText] = useState('');
+  const [parseNotice, setParseNotice] = useState<{ message: string; tone: 'ok' | 'info' | 'warn' } | null>(null);
 
   // Step 1: Identity
   const [title, setTitle] = useState('');
@@ -153,6 +166,118 @@ export const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
   const [ownerWhatsapp, setOwnerWhatsapp] = useState('');
   const [ownerNotes, setOwnerNotes] = useState('');
   const [description, setDescription] = useState('');
+
+  // Initialize or prefill from props
+  useEffect(() => {
+    if (initialPrefill) {
+      if (initialPrefill.title) setTitle(initialPrefill.title);
+      if (initialPrefill.transactionType) setTransactionType(initialPrefill.transactionType);
+      if (initialPrefill.category) setCategory(initialPrefill.category);
+      if (initialPrefill.locality) {
+        setLocality(initialPrefill.locality);
+        const hit = NAGPUR_LOCALITIES.find(l => l.name === initialPrefill.locality);
+        if (hit) setCorridor(hit.corridor);
+      }
+      if (initialPrefill.corridor) setCorridor(initialPrefill.corridor);
+      if (initialPrefill.address) setAddress(initialPrefill.address);
+      if (initialPrefill.priceNumeric) setPriceNumeric(initialPrefill.priceNumeric);
+      if (initialPrefill.areaSqFt) setAreaSqFt(initialPrefill.areaSqFt);
+      if (initialPrefill.carpetAreaSqFt) setCarpetAreaSqFt(initialPrefill.carpetAreaSqFt);
+      if (initialPrefill.bhk) setBhk(initialPrefill.bhk);
+      if (initialPrefill.facing) setFacing(initialPrefill.facing);
+      if (initialPrefill.furnishing) setFurnishing(initialPrefill.furnishing);
+      if (initialPrefill.description) setDescription(initialPrefill.description);
+
+      if (initialPrefill.owner) {
+        if (initialPrefill.owner.name) setOwnerName(initialPrefill.owner.name);
+        if (initialPrefill.owner.phone) setOwnerPhone(initialPrefill.owner.phone);
+        if (initialPrefill.owner.whatsapp) setOwnerWhatsapp(initialPrefill.owner.whatsapp);
+        if (initialPrefill.owner.notes) setOwnerNotes(initialPrefill.owner.notes);
+      }
+
+      if (initialPrefill.legalStatus) {
+        if (typeof initialPrefill.legalStatus.nmrdaApproved === 'boolean') setNmrdaApproved(initialPrefill.legalStatus.nmrdaApproved);
+        if (typeof initialPrefill.legalStatus.rlAvailable === 'boolean') setRlAvailable(initialPrefill.legalStatus.rlAvailable);
+        if (typeof initialPrefill.legalStatus.reraRegistered === 'boolean') setReraRegistered(initialPrefill.legalStatus.reraRegistered);
+        if (typeof initialPrefill.legalStatus.clearTitle === 'boolean') setClearTitle(initialPrefill.legalStatus.clearTitle);
+      }
+
+      setParseNotice({
+        message: `Prefilled from WhatsApp lead: ${initialPrefill.owner?.name || 'Contact'} (${initialPrefill.locality || 'Nagpur'})`,
+        tone: 'info'
+      });
+    }
+  }, [initialPrefill]);
+
+  // Execute WhatsApp message auto-parse
+  const handleParseWhatsAppText = (rawMsg: string) => {
+    if (!rawMsg || !rawMsg.trim()) {
+      setParseNotice({ message: 'Please paste a WhatsApp message first.', tone: 'warn' });
+      return;
+    }
+
+    const result = parseWhatsAppPropertyMessage(rawMsg);
+    const { extractedFields, confidenceScore } = result;
+
+    if (confidenceScore === 0) {
+      setParseNotice({
+        message: 'Could not extract property details from this text. Please check the text or enter manually.',
+        tone: 'warn'
+      });
+      return;
+    }
+
+    // Apply extracted fields
+    if (extractedFields.title) setTitle(extractedFields.title);
+    if (extractedFields.category) setCategory(extractedFields.category);
+    if (extractedFields.transactionType) setTransactionType(extractedFields.transactionType);
+    if (extractedFields.locality) {
+      setLocality(extractedFields.locality);
+      const hit = NAGPUR_LOCALITIES.find(l => l.name === extractedFields.locality);
+      if (hit) setCorridor(hit.corridor);
+    }
+    if (extractedFields.corridor) setCorridor(extractedFields.corridor);
+    if (extractedFields.address) setAddress(extractedFields.address);
+    if (extractedFields.priceNumeric && extractedFields.priceNumeric > 0) setPriceNumeric(extractedFields.priceNumeric);
+    if (extractedFields.areaSqFt && extractedFields.areaSqFt > 0) {
+      setAreaSqFt(extractedFields.areaSqFt);
+      setCarpetAreaSqFt(Math.round(extractedFields.areaSqFt * 0.76));
+    }
+    if (extractedFields.bhk) setBhk(extractedFields.bhk);
+    if (extractedFields.facing) setFacing(extractedFields.facing);
+    if (extractedFields.furnishing) setFurnishing(extractedFields.furnishing);
+
+    if (extractedFields.ownerName) setOwnerName(extractedFields.ownerName);
+    if (extractedFields.ownerPhone) {
+      setOwnerPhone(extractedFields.ownerPhone);
+      setOwnerWhatsapp(extractedFields.ownerPhone);
+    }
+
+    if (extractedFields.legalStatus) {
+      if (typeof extractedFields.legalStatus.nmrdaApproved === 'boolean') setNmrdaApproved(extractedFields.legalStatus.nmrdaApproved);
+      if (typeof extractedFields.legalStatus.rlAvailable === 'boolean') setRlAvailable(extractedFields.legalStatus.rlAvailable);
+      if (typeof extractedFields.legalStatus.reraRegistered === 'boolean') setReraRegistered(extractedFields.legalStatus.reraRegistered);
+      if (typeof extractedFields.legalStatus.clearTitle === 'boolean') setClearTitle(extractedFields.legalStatus.clearTitle);
+    }
+
+    // Preserve original message in notes / description
+    if (!description) {
+      setDescription(`WhatsApp Source Listing:\n${rawMsg.trim()}`);
+    }
+
+    const summaryParts: string[] = [];
+    if (extractedFields.bhk && extractedFields.category !== 'plot') summaryParts.push(extractedFields.bhk);
+    if (extractedFields.category) summaryParts.push(extractedFields.category.toUpperCase());
+    if (extractedFields.locality) summaryParts.push(extractedFields.locality);
+    if (extractedFields.areaSqFt) summaryParts.push(`${extractedFields.areaSqFt} sq.ft`);
+    if (extractedFields.price) summaryParts.push(extractedFields.price);
+    if (extractedFields.ownerPhone) summaryParts.push(`Ph: ${extractedFields.ownerPhone}`);
+
+    setParseNotice({
+      message: `Parsed (${confidenceScore}% match): ${summaryParts.join(' · ')}`,
+      tone: 'ok'
+    });
+  };
 
   // Handle Locality change
   const handleLocalityChange = (locName: string) => {
@@ -411,6 +536,101 @@ export const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
               <span>{errorMsg}</span>
             </div>
           )}
+
+          {/* FAST AUTO-FILL FROM WHATSAPP BOX */}
+          <div className="rounded-2xl border border-emerald-200 bg-gradient-to-r from-emerald-50/70 to-teal-50/50 p-3.5 shadow-xs">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-xs shrink-0">
+                  <MessageSquare className="w-4 h-4" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-xs text-emerald-950 flex items-center gap-1.5">
+                    <span>Auto-fill Property from WhatsApp Message</span>
+                    <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-200/80 text-emerald-800 px-1.5 py-0.5 rounded">
+                      Fast AI
+                    </span>
+                  </h4>
+                  <p className="text-[11px] text-emerald-700">
+                    Paste forwarded text from owner or broker to instantly extract Nagpur locality, price, area, and legal status
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsWhatsAppImporterOpen(!isWhatsAppImporterOpen)}
+                className="text-xs font-bold text-emerald-800 hover:text-emerald-950 px-2.5 py-1 rounded-lg bg-white/90 border border-emerald-200 transition-colors cursor-pointer shrink-0"
+              >
+                {isWhatsAppImporterOpen ? 'Hide' : 'Paste Text ↓'}
+              </button>
+            </div>
+
+            {isWhatsAppImporterOpen && (
+              <div className="mt-3 pt-3 border-t border-emerald-200/60 space-y-2.5 animate-in fade-in">
+                <textarea
+                  rows={3}
+                  value={whatsappRawText}
+                  onChange={(e) => setWhatsappRawText(e.target.value)}
+                  placeholder="Paste WhatsApp message here... e.g. 'Plot for sale in Besa Nagpur, 1500 sqft, East facing, RL Approved, demand 55 Lakhs. Contact Mr. Sharma 9823012345'"
+                  className="w-full text-xs p-2.5 bg-white border border-emerald-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/30 text-slate-800 font-medium"
+                />
+
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleParseWhatsAppText(whatsappRawText)}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition-colors cursor-pointer"
+                    >
+                      <Zap className="w-3.5 h-3.5 fill-current" />
+                      <span>Parse &amp; Auto-fill Form</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const sample = '3 BHK Flat for sale in Manish Nagar near Besa Square, 1450 sqft super builtup, East facing, Semi Furnished, 2nd floor, Lift, Car Parking, RL and NMRDA approved, Clear title. Demand 68 Lakhs negotiable. Owner: Ramesh Agrawal 9890123456';
+                        setWhatsappRawText(sample);
+                        handleParseWhatsAppText(sample);
+                      }}
+                      className="text-[11px] font-bold text-emerald-700 hover:text-emerald-900 bg-white border border-emerald-200 hover:bg-emerald-50 px-2.5 py-1.5 rounded-xl transition-colors cursor-pointer"
+                    >
+                      Insert Sample Message
+                    </button>
+                  </div>
+
+                  {whatsappRawText && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setWhatsappRawText('');
+                        setParseNotice(null);
+                      }}
+                      className="text-[11px] text-slate-500 hover:text-slate-700 underline"
+                    >
+                      Clear Text
+                    </button>
+                  )}
+                </div>
+
+                {parseNotice && (
+                  <div
+                    className={`p-2.5 rounded-xl text-xs font-semibold flex items-center gap-2 border ${
+                      parseNotice.tone === 'ok'
+                        ? 'bg-emerald-100/80 text-emerald-900 border-emerald-300'
+                        : parseNotice.tone === 'info'
+                        ? 'bg-blue-50 text-blue-900 border-blue-200'
+                        : 'bg-amber-50 text-amber-900 border-amber-200'
+                    }`}
+                  >
+                    <Sparkles className="w-4 h-4 shrink-0 text-emerald-700" />
+                    <span className="flex-1">{parseNotice.message}</span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
 
           {/* STEP 1: IDENTITY */}
           {step === 1 && (

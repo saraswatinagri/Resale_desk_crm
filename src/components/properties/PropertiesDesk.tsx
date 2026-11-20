@@ -24,6 +24,7 @@ interface PropertiesDeskProps {
   properties: ResaleProperty[];
   saraswatiProjects?: SaraswatiProject[];
   onOpenAddProperty: () => void;
+  onOpenAddFromWhatsApp?: () => void;
   onViewProperty: (prop: ResaleProperty) => void;
   onUpdatePropertyStatus: (propId: string, status: PropertyStatus) => void;
   onDeleteProperty: (propId: string) => void;
@@ -34,6 +35,7 @@ export const PropertiesDesk: React.FC<PropertiesDeskProps> = ({
   properties,
   saraswatiProjects = [],
   onOpenAddProperty,
+  onOpenAddFromWhatsApp,
   onViewProperty,
   onUpdatePropertyStatus,
   onDeleteProperty,
@@ -105,40 +107,66 @@ export const PropertiesDesk: React.FC<PropertiesDeskProps> = ({
   return (
     <div className="space-y-5">
       {/* ── EXACT SARASWATI NAGRI SEGMENTED BAR (projects/client.tsx line 660) ── */}
-      <div className="flex items-center gap-1.5 rounded-2xl border border-slate-200 bg-slate-100/80 p-1.5 shadow-inner overflow-x-auto">
-        <button
-          type="button"
-          onClick={() => setInventoryTab('resale')}
-          className={`flex shrink-0 items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition-all cursor-pointer ${
-            inventoryTab === 'resale' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          <span>Resale &amp; Rent Properties</span>
-          <span
-            className={`rounded-full px-2 py-0.5 text-[11px] font-black ${
-              inventoryTab === 'resale' ? 'bg-amber-100 text-amber-700' : 'bg-slate-200 text-slate-500'
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5 rounded-2xl border border-slate-200 bg-slate-100/80 p-1.5 shadow-inner overflow-x-auto">
+          <button
+            type="button"
+            onClick={() => setInventoryTab('resale')}
+            className={`flex shrink-0 items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition-all cursor-pointer ${
+              inventoryTab === 'resale' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'
             }`}
           >
-            {properties.length}
-          </span>
-        </button>
+            <span>Resale &amp; Rent Properties</span>
+            <span
+              className={`rounded-full px-2 py-0.5 text-[11px] font-black ${
+                inventoryTab === 'resale' ? 'bg-amber-100 text-amber-700' : 'bg-slate-200 text-slate-500'
+              }`}
+            >
+              {properties.length}
+            </span>
+          </button>
 
-        <button
-          type="button"
-          onClick={() => setInventoryTab('layouts')}
-          className={`flex shrink-0 items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition-all cursor-pointer ${
-            inventoryTab === 'layouts' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          <span>Saraswati Nagri Layouts</span>
-          <span
-            className={`rounded-full px-2 py-0.5 text-[11px] font-black ${
-              inventoryTab === 'layouts' ? 'bg-amber-100 text-amber-700' : 'bg-slate-200 text-slate-500'
+          <button
+            type="button"
+            onClick={() => setInventoryTab('layouts')}
+            className={`flex shrink-0 items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition-all cursor-pointer ${
+              inventoryTab === 'layouts' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'
             }`}
           >
-            {saraswatiProjects.length}
-          </span>
-        </button>
+            <span>Saraswati Nagri Layouts</span>
+            <span
+              className={`rounded-full px-2 py-0.5 text-[11px] font-black ${
+                inventoryTab === 'layouts' ? 'bg-amber-100 text-amber-700' : 'bg-slate-200 text-slate-500'
+              }`}
+            >
+              {saraswatiProjects.length}
+            </span>
+          </button>
+        </div>
+
+        {/* Action buttons: Register Property + Add from WhatsApp */}
+        <div className="flex items-center gap-2 shrink-0">
+          {onOpenAddFromWhatsApp && (
+            <button
+              type="button"
+              onClick={onOpenAddFromWhatsApp}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm transition-all cursor-pointer"
+              title="Add property by parsing a WhatsApp message from seller or broker"
+            >
+              <MessageSquare className="w-3.5 h-3.5 text-emerald-100" />
+              <span>Add from WhatsApp</span>
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={onOpenAddProperty}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-sm transition-all cursor-pointer"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Register Property</span>
+          </button>
+        </div>
       </div>
 
       {/* ── EXACT SARASWATI NAGRI SEARCH & FILTER BAR (projects/client.tsx line 685) ── */}

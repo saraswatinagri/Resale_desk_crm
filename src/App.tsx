@@ -16,6 +16,7 @@ import { DealCalculatorModal } from './components/tools/DealCalculatorModal';
 import { WhatsAppTemplatesModal } from './components/tools/WhatsAppTemplatesModal';
 import { WhatsAppConnectModal } from './components/whatsapp/WhatsAppConnectModal';
 import { LeadWhatsAppWindow } from './components/whatsapp/LeadWhatsAppWindow';
+import { WebsiteApiModal } from './components/tools/WebsiteApiModal';
 import { storage } from './services/storage';
 import { useAuth } from './lib/auth-context';
 import {
@@ -62,6 +63,9 @@ export function App() {
   const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
   const [isTemplatesOpen, setIsTemplatesOpen] = useState(false);
   const [isWhatsAppConnectOpen, setIsWhatsAppConnectOpen] = useState(false);
+  const [isWebsiteApiOpen, setIsWebsiteApiOpen] = useState(false);
+  const [propertyPrefill, setPropertyPrefill] = useState<Partial<ResaleProperty> | null>(null);
+  const [openWithWhatsAppImport, setOpenWithWhatsAppImport] = useState(false);
   const [whatsAppLead, setWhatsAppLead] = useState<ResaleLead | null>(null);
 
   const [activeLead, setActiveLead] = useState<ResaleLead | null>(null);
@@ -398,6 +402,7 @@ export function App() {
         onOpenTemplates={() => setIsTemplatesOpen(true)}
         onOpenBackup={() => setIsBackupOpen(true)}
         onOpenWhatsAppConnect={() => setIsWhatsAppConnectOpen(true)}
+        onOpenWebsiteApi={() => setIsWebsiteApiOpen(true)}
         totalLeads={leads.length}
         totalProperties={properties.length}
         currentUser={user}
@@ -479,7 +484,16 @@ export function App() {
             <PropertiesDesk
               properties={properties}
               saraswatiProjects={saraswatiProjects}
-              onOpenAddProperty={() => setIsAddPropertyOpen(true)}
+              onOpenAddProperty={() => {
+                setPropertyPrefill(null);
+                setOpenWithWhatsAppImport(false);
+                setIsAddPropertyOpen(true);
+              }}
+              onOpenAddFromWhatsApp={() => {
+                setPropertyPrefill(null);
+                setOpenWithWhatsAppImport(true);
+                setIsAddPropertyOpen(true);
+              }}
               onViewProperty={setActiveProperty}
               onUpdatePropertyStatus={handleUpdatePropertyStatus}
               onDeleteProperty={handleDeleteProperty}
@@ -523,8 +537,14 @@ export function App() {
       {isAddPropertyOpen && (
         <AddPropertyModal
           isOpen={isAddPropertyOpen}
-          onClose={() => setIsAddPropertyOpen(false)}
+          onClose={() => {
+            setIsAddPropertyOpen(false);
+            setPropertyPrefill(null);
+            setOpenWithWhatsAppImport(false);
+          }}
           onSaveProperty={handleSaveProperty}
+          initialPrefill={propertyPrefill}
+          defaultOpenWhatsAppImport={openWithWhatsAppImport}
         />
       )}
 
@@ -552,6 +572,12 @@ export function App() {
           onClose={() => setWhatsAppLead(null)}
           onConnect={() => setIsWhatsAppConnectOpen(true)}
           variant="overlay"
+          onConvertToProperty={(prefill) => {
+            setPropertyPrefill(prefill);
+            setOpenWithWhatsAppImport(true);
+            setIsAddPropertyOpen(true);
+            setWhatsAppLead(null);
+          }}
         />
       )}
 
@@ -594,6 +620,13 @@ export function App() {
         <WhatsAppConnectModal
           isOpen={isWhatsAppConnectOpen}
           onClose={() => setIsWhatsAppConnectOpen(false)}
+        />
+      )}
+
+      {isWebsiteApiOpen && (
+        <WebsiteApiModal
+          isOpen={isWebsiteApiOpen}
+          onClose={() => setIsWebsiteApiOpen(false)}
         />
       )}
     </div>

@@ -17,6 +17,7 @@ import {
   MapPin,
   FileCheck2,
   ReceiptIndianRupee,
+  PlusSquare
 } from 'lucide-react';
 import {
   fetchLeadWhatsAppMessages,
@@ -26,6 +27,8 @@ import {
   type WhatsAppSession,
 } from '../../services/whatsappService';
 import { toast } from '../../utils/toast';
+import { parseWhatsAppPropertyMessage } from '../../utils/whatsappPropertyParser';
+import type { ResaleProperty } from '../../types/crm';
 
 export type WaLanguage = 'Hindi' | 'Marathi' | 'English';
 
@@ -39,6 +42,7 @@ export interface LeadWhatsAppWindowProps {
   onClose: () => void;
   onConnect: () => void;
   variant?: 'overlay' | 'panel';
+  onConvertToProperty?: (prefill: Partial<ResaleProperty>) => void;
 }
 
 const IST = 'Asia/Kolkata';
@@ -147,6 +151,7 @@ export const LeadWhatsAppWindow: React.FC<LeadWhatsAppWindowProps> = ({
   onClose,
   onConnect,
   variant = 'overlay',
+  onConvertToProperty,
 }) => {
   const [messages, setMessages] = useState<WhatsAppMessageItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -156,6 +161,50 @@ export const LeadWhatsAppWindow: React.FC<LeadWhatsAppWindowProps> = ({
   const [activeSession, setActiveSession] = useState<WhatsAppSession | null>(null);
   const [sessionsCount, setSessionsCount] = useState(0);
   const endRef = useRef<HTMLDivElement>(null);
+
+  // Convert chat text or specific message to structured resale property
+  const handleConvertChatToProperty = (specificText?: string) => {
+    if (!onConvertToProperty) return;
+
+    const textToParse = specificText || messages.map((m) => m.text).filter(Boolean).join('\n');
+    const parsed = parseWhatsAppPropertyMessage(textToParse || `${projectName} requirement`);
+    const fields = parsed.extractedFields;
+
+    const prefill: Partial<ResaleProperty> = {
+      title: fields.title || `${fields.bhk || '2/3 BHK'} in ${fields.locality || 'Besa'} (${leadName})`,
+      category: fields.category || 'flat',
+      transactionType: fields.transactionType || 'resale',
+      locality: fields.locality || 'Besa',
+      corridor: fields.corridor || 'South Nagpur',
+      address: fields.address || `${fields.locality || 'Besa'}, Nagpur, Maharashtra`,
+      priceNumeric: fields.priceNumeric || 5000000,
+      areaSqFt: fields.areaSqFt || 1200,
+      carpetAreaSqFt: fields.areaSqFt ? Math.round(fields.areaSqFt * 0.76) : 900,
+      bhk: fields.bhk || '3 BHK',
+      facing: fields.facing || 'East',
+      furnishing: fields.furnishing || 'Semi-Furnished',
+      description: `Converted from WhatsApp Conversation with ${leadName} (${phone}):\n${textToParse}`,
+      owner: {
+        name: fields.ownerName || leadName,
+        phone: fields.ownerPhone || phone,
+        whatsapp: phone,
+        negotiable: true,
+        commissionPercent: 2,
+        notes: `Added from WhatsApp chat with ${leadName}`
+      },
+      legalStatus: {
+        nmrdaApproved: fields.legalStatus?.nmrdaApproved ?? true,
+        rlAvailable: fields.legalStatus?.rlAvailable ?? true,
+        reraRegistered: fields.legalStatus?.reraRegistered ?? true,
+        nitApproved: false,
+        clearTitle: fields.legalStatus?.clearTitle ?? true,
+        loanEligible: true,
+        eligibleBanks: ['State Bank of India', 'HDFC Bank']
+      }
+    };
+
+    onConvertToProperty(prefill);
+  };
 
   // Load WhatsApp session and chat history
   const loadChat = async () => {
@@ -302,20 +351,34 @@ export const LeadWhatsAppWindow: React.FC<LeadWhatsAppWindowProps> = ({
           </div>
         </div>
 
-        {/* Language selector */}
-        <label className="flex shrink-0 items-center gap-1.5 rounded-full border border-green-200 bg-green-50 px-2.5 py-1">
-          <Languages className="h-3 w-3 text-green-700" />
-          <select
-            value={language}
-            onChange={(e) => setLanguage(e.target.value as WaLanguage)}
-            className="bg-transparent text-[11px] font-black text-green-800 outline-none cursor-pointer"
-            aria-label="Buyer message language"
-          >
-            <option value="Hindi">Hindi</option>
-            <option value="Marathi">Marathi</option>
-            <option value="English">English</option>
-          </select>
-        </label>
+        {/* Language selector & Convert to property button */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          {onConvertToProperty && (
+            <button
+              type="button"
+              onClick={() => handleConvertChatToProperty()}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-500 hover:bg-amber-600 text-white font-bold text-[10px] shadow-xs transition-colors cursor-pointer shrink-0"
+              title="Parse this WhatsApp conversation and register as Resale Property"
+            >
+              <Building2 className="w-3 h-3" />
+              <span>+ Resale Property</span>
+            </button>
+          )}
+
+          <label className="flex shrink-0 items-center gap-1.5 rounded-full border border-green-200 bg-green-50 px-2.5 py-1">
+            <Languages className="h-3 w-3 text-green-700" />
+            <select
+              value={language}
+              onChange={(e) => setLanguage(e.target.value as WaLanguage)}
+              className="bg-transparent text-[11px] font-black text-green-800 outline-none cursor-pointer"
+              aria-label="Buyer message language"
+            >
+              <option value="Hindi">Hindi</option>
+              <option value="Marathi">Marathi</option>
+              <option value="English">English</option>
+            </select>
+          </label>
+        </div>
       </div>
 
       {/* 3. Session info or connect banner */}
@@ -392,6 +455,20 @@ export const LeadWhatsAppWindow: React.FC<LeadWhatsAppWindowProps> = ({
                   )}
 
                   <p className="text-slate-800">{m.text}</p>
+
+                  {onConvertToProperty && m.text && m.text.length > 20 && (
+                    <div className="mt-1 pt-1 border-t border-black/5 flex items-center justify-between gap-1">
+                      <button
+                        type="button"
+                        onClick={() => handleConvertChatToProperty(m.text)}
+                        className="text-[10px] font-bold text-amber-700 hover:text-amber-900 hover:underline flex items-center gap-1 cursor-pointer"
+                        title="Parse this message text as property listing"
+                      >
+                        <PlusSquare className="w-3 h-3" />
+                        <span>Add as Property</span>
+                      </button>
+                    </div>
+                  )}
 
                   <span
                     className={`block text-[9px] text-right mt-1 font-semibold ${
