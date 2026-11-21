@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
   X, 
   Building2, 
@@ -29,7 +29,12 @@ import {
   FileText,
   MessageSquare,
   Zap,
-  ArrowDown
+  ArrowDown,
+  Search,
+  RefreshCw,
+  Smartphone,
+  QrCode,
+  ExternalLink
 } from 'lucide-react';
 import { 
   ResaleProperty, 
@@ -45,13 +50,19 @@ import {
   FACING_OPTIONS, 
   COMMON_AMENITIES 
 } from '../../data/constants';
-import { formatIndianCurrency } from '../../utils/formatters';
+import { formatIndianCurrency, generateWhatsAppLink } from '../../utils/formatters';
 import { 
   OptimizedImage, 
   PHOTO_LABELS, 
   processMultipleImageFiles 
 } from '../../utils/imageUpload';
 import { parseWhatsAppPropertyMessage } from '../../utils/whatsappPropertyParser';
+import {
+  fetchRecentInboundPropertyMessages,
+  WhatsAppInboundPropertyMessage,
+  fetchWhatsAppSessions,
+  WhatsAppSession
+} from '../../services/whatsappService';
 
 interface AddPropertyModalProps {
   isOpen: boolean;
@@ -59,6 +70,7 @@ interface AddPropertyModalProps {
   onSaveProperty: (property: Omit<ResaleProperty, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void> | void;
   initialPrefill?: Partial<ResaleProperty> | null;
   defaultOpenWhatsAppImport?: boolean;
+  onOpenWhatsAppConnect?: () => void;
 }
 
 // EXACT MULTI-STEPPER DEFINITIONS (MATCHING SARASWATI NAGRI CRM)
@@ -85,7 +97,8 @@ export const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
   onClose,
   onSaveProperty,
   initialPrefill,
-  defaultOpenWhatsAppImport = false
+  defaultOpenWhatsAppImport = false,
+  onOpenWhatsAppConnect
 }) => {
   if (!isOpen) return null;
 
@@ -95,6 +108,12 @@ export const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
 
   // WhatsApp Message Fast-Importer State
   const [isWhatsAppImporterOpen, setIsWhatsAppImporterOpen] = useState(Boolean(defaultOpenWhatsAppImport || initialPrefill));
+  const [whatsappImportTab, setWhatsappImportTab] = useState<'direct' | 'paste'>('direct');
+  const [inboundMessages, setInboundMessages] = useState<WhatsAppInboundPropertyMessage[]>([]);
+  const [isLoadingInbound, setIsLoadingInbound] = useState(false);
+  const [activeSession, setActiveSession] = useState<WhatsAppSession | null>(null);
+  const [searchInboundTerm, setSearchInboundTerm] = useState('');
+  const [selectedInboundId, setSelectedInboundId] = useState<string | null>(null);
   const [whatsappRawText, setWhatsappRawText] = useState('');
   const [parseNotice, setParseNotice] = useState<{ message: string; tone: 'ok' | 'info' | 'warn' } | null>(null);
 
@@ -209,10 +228,47 @@ export const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
     }
   }, [initialPrefill]);
 
-  // Execute WhatsApp message auto-parse
-  const handleParseWhatsAppText = (rawMsg: string) => {
+  // Load live inbound WhatsApp messages from CRM line
+  const loadInboundMessages = useCallback(async () => {
+    setIsLoadingInbound(true);
+    try {
+      const [{ messages }, { activeSession: session }] = await Promise.all([
+        fetchRecentInboundPropertyMessages(),
+        fetchWhatsAppSessions()
+      ]);
+      setInboundMessages(messages);
+      setActiveSession(session);
+    } catch (err) {
+      console.warn('Error loading inbound WhatsApp messages:', err);
+    } finally {
+      setIsLoadingInbound(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isOpen) {
+      loadInboundMessages();
+    }
+  }, [isOpen, loadInboundMessages]);
+
+  const filteredInboundMessages = useMemo(() => {
+    return inboundMessages.filter((m) => {
+      const q = searchInboundTerm.trim().toLowerCase();
+      if (!q) return true;
+      return (
+        m.text.toLowerCase().includes(q) ||
+        (m.pushName || '').toLowerCase().includes(q) ||
+        m.fromNumber.includes(q) ||
+        (m.locality || '').toLowerCase().includes(q) ||
+        (m.bhk || '').toLowerCase().includes(q)
+      );
+    });
+  }, [inboundMessages, searchInboundTerm]);
+
+  // Execute WhatsApp message auto-parse and form field population
+  const handleParseWhatsAppText = (rawMsg: string, senderName?: string, senderPhone?: string) => {
     if (!rawMsg || !rawMsg.trim()) {
-      setParseNotice({ message: 'Please paste a WhatsApp message first.', tone: 'warn' });
+      setParseNotice({ message: 'Please select or paste a WhatsApp message first.', tone: 'warn' });
       return;
     }
 
@@ -247,10 +303,13 @@ export const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
     if (extractedFields.facing) setFacing(extractedFields.facing);
     if (extractedFields.furnishing) setFurnishing(extractedFields.furnishing);
 
-    if (extractedFields.ownerName) setOwnerName(extractedFields.ownerName);
-    if (extractedFields.ownerPhone) {
-      setOwnerPhone(extractedFields.ownerPhone);
-      setOwnerWhatsapp(extractedFields.ownerPhone);
+    const finalOwnerName = extractedFields.ownerName || senderName || '';
+    if (finalOwnerName) setOwnerName(finalOwnerName);
+
+    const finalPhone = extractedFields.ownerPhone || senderPhone || '';
+    if (finalPhone) {
+      setOwnerPhone(finalPhone);
+      setOwnerWhatsapp(finalPhone);
     }
 
     if (extractedFields.legalStatus) {
@@ -271,10 +330,10 @@ export const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
     if (extractedFields.locality) summaryParts.push(extractedFields.locality);
     if (extractedFields.areaSqFt) summaryParts.push(`${extractedFields.areaSqFt} sq.ft`);
     if (extractedFields.price) summaryParts.push(extractedFields.price);
-    if (extractedFields.ownerPhone) summaryParts.push(`Ph: ${extractedFields.ownerPhone}`);
+    if (finalPhone) summaryParts.push(`Ph: ${finalPhone}`);
 
     setParseNotice({
-      message: `Parsed (${confidenceScore}% match): ${summaryParts.join(' · ')}`,
+      message: `Directly inserted from WhatsApp (${confidenceScore}% match): ${summaryParts.join(' · ')}. Review details in the 8 steps below!`,
       tone: 'ok'
     });
   };
@@ -537,88 +596,301 @@ export const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
             </div>
           )}
 
-          {/* FAST AUTO-FILL FROM WHATSAPP BOX */}
-          <div className="rounded-2xl border border-emerald-200 bg-gradient-to-r from-emerald-50/70 to-teal-50/50 p-3.5 shadow-xs">
-            <div className="flex items-center justify-between gap-2">
+          {/* FAST AUTO-FILL FROM DIRECT WHATSAPP & AI INGESTION CENTER */}
+          <div className="rounded-2xl border border-emerald-200 bg-gradient-to-r from-emerald-50/80 via-teal-50/50 to-white p-3.5 shadow-xs">
+            <div className="flex flex-wrap items-center justify-between gap-2.5">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-xs shrink-0">
                   <MessageSquare className="w-4 h-4" />
                 </div>
                 <div>
                   <h4 className="font-bold text-xs text-emerald-950 flex items-center gap-1.5">
-                    <span>Auto-fill Property from WhatsApp Message</span>
+                    <span>Direct WhatsApp Property Ingestion</span>
                     <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-200/80 text-emerald-800 px-1.5 py-0.5 rounded">
-                      Fast AI
+                      Fast 1-Click
                     </span>
                   </h4>
                   <p className="text-[11px] text-emerald-700">
-                    Paste forwarded text from owner or broker to instantly extract Nagpur locality, price, area, and legal status
+                    Pick incoming WhatsApp messages from buyers/brokers directly or paste listing text
                   </p>
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={() => setIsWhatsAppImporterOpen(!isWhatsAppImporterOpen)}
-                className="text-xs font-bold text-emerald-800 hover:text-emerald-950 px-2.5 py-1 rounded-lg bg-white/90 border border-emerald-200 transition-colors cursor-pointer shrink-0"
-              >
-                {isWhatsAppImporterOpen ? 'Hide' : 'Paste Text ↓'}
-              </button>
+              <div className="flex items-center gap-2">
+                <div className="flex items-center bg-white/90 border border-emerald-200 rounded-xl p-0.5 shadow-2xs">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsWhatsAppImporterOpen(true);
+                      setWhatsappImportTab('direct');
+                    }}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                      whatsappImportTab === 'direct' && isWhatsAppImporterOpen
+                        ? 'bg-emerald-600 text-white shadow-2xs'
+                        : 'text-emerald-800 hover:text-emerald-950'
+                    }`}
+                  >
+                    📲 Direct WhatsApp Chats
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsWhatsAppImporterOpen(true);
+                      setWhatsappImportTab('paste');
+                    }}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                      whatsappImportTab === 'paste' && isWhatsAppImporterOpen
+                        ? 'bg-emerald-600 text-white shadow-2xs'
+                        : 'text-emerald-800 hover:text-emerald-950'
+                    }`}
+                  >
+                    📋 Paste Raw Text
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setIsWhatsAppImporterOpen(!isWhatsAppImporterOpen)}
+                  className="text-xs font-bold text-emerald-800 hover:text-emerald-950 px-2 py-1 rounded-lg bg-white/90 border border-emerald-200 transition-colors cursor-pointer shrink-0"
+                >
+                  {isWhatsAppImporterOpen ? 'Hide' : 'Expand ↓'}
+                </button>
+              </div>
             </div>
 
             {isWhatsAppImporterOpen && (
-              <div className="mt-3 pt-3 border-t border-emerald-200/60 space-y-2.5 animate-in fade-in">
-                <textarea
-                  rows={3}
-                  value={whatsappRawText}
-                  onChange={(e) => setWhatsappRawText(e.target.value)}
-                  placeholder="Paste WhatsApp message here... e.g. 'Plot for sale in Besa Nagpur, 1500 sqft, East facing, RL Approved, demand 55 Lakhs. Contact Mr. Sharma 9823012345'"
-                  className="w-full text-xs p-2.5 bg-white border border-emerald-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/30 text-slate-800 font-medium"
-                />
+              <div className="mt-3 pt-3 border-t border-emerald-200/70 space-y-3 animate-in fade-in">
+                {/* Connection Status Bar */}
+                <div className="flex flex-wrap items-center justify-between gap-2 p-2 rounded-xl bg-white/80 border border-emerald-100">
+                  <div className="flex items-center gap-2">
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                    </span>
+                    <span className="text-[11px] font-bold text-slate-700">
+                      CRM WhatsApp Line: <span className="text-emerald-700 font-extrabold">+91 89560 40220</span>
+                    </span>
+                    <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded">
+                      Listening
+                    </span>
+                  </div>
 
-                <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      onClick={() => handleParseWhatsAppText(whatsappRawText)}
-                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition-colors cursor-pointer"
+                      onClick={loadInboundMessages}
+                      disabled={isLoadingInbound}
+                      className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-600 hover:text-emerald-700 bg-white border border-slate-200 px-2 py-1 rounded-lg transition-colors cursor-pointer"
+                      title="Refresh WhatsApp messages"
                     >
-                      <Zap className="w-3.5 h-3.5 fill-current" />
-                      <span>Parse &amp; Auto-fill Form</span>
+                      <RefreshCw className={`w-3 h-3 ${isLoadingInbound ? 'animate-spin text-emerald-600' : ''}`} />
+                      <span>Refresh</span>
                     </button>
 
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const sample = '3 BHK Flat for sale in Manish Nagar near Besa Square, 1450 sqft super builtup, East facing, Semi Furnished, 2nd floor, Lift, Car Parking, RL and NMRDA approved, Clear title. Demand 68 Lakhs negotiable. Owner: Ramesh Agrawal 9890123456';
-                        setWhatsappRawText(sample);
-                        handleParseWhatsAppText(sample);
-                      }}
-                      className="text-[11px] font-bold text-emerald-700 hover:text-emerald-900 bg-white border border-emerald-200 hover:bg-emerald-50 px-2.5 py-1.5 rounded-xl transition-colors cursor-pointer"
+                    <a
+                      href="https://wa.me/918956040220?text=Forward%20property%20listing"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 hover:text-emerald-900 bg-emerald-50 border border-emerald-200 px-2 py-1 rounded-lg transition-colors"
                     >
-                      Insert Sample Message
-                    </button>
+                      <Smartphone className="w-3 h-3" />
+                      <span>Forward to CRM</span>
+                      <ExternalLink className="w-2.5 h-2.5" />
+                    </a>
+
+                    {onOpenWhatsAppConnect && (
+                      <button
+                        type="button"
+                        onClick={onOpenWhatsAppConnect}
+                        className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-700 hover:text-slate-900 bg-white border border-slate-200 px-2 py-1 rounded-lg transition-colors cursor-pointer"
+                      >
+                        <QrCode className="w-3 h-3 text-slate-500" />
+                        <span>Pair / QR</span>
+                      </button>
+                    )}
                   </div>
-
-                  {whatsappRawText && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setWhatsappRawText('');
-                        setParseNotice(null);
-                      }}
-                      className="text-[11px] text-slate-500 hover:text-slate-700 underline"
-                    >
-                      Clear Text
-                    </button>
-                  )}
                 </div>
 
+                {/* TAB 1: DIRECT FROM WHATSAPP CHATS */}
+                {whatsappImportTab === 'direct' && (
+                  <div className="space-y-2.5">
+                    {/* Search WhatsApp Messages */}
+                    <div className="relative">
+                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                      <input
+                        type="text"
+                        placeholder="Search incoming WhatsApp messages by locality, BHK, or phone..."
+                        value={searchInboundTerm}
+                        onChange={(e) => setSearchInboundTerm(e.target.value)}
+                        className="w-full pl-8 pr-3 py-1.5 text-xs bg-white border border-emerald-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-slate-800"
+                      />
+                    </div>
+
+                    {/* Messages Scrollable List */}
+                    <div className="max-h-60 overflow-y-auto space-y-2 pr-1">
+                      {isLoadingInbound ? (
+                        <div className="py-8 text-center text-slate-400 space-y-1.5">
+                          <RefreshCw className="w-5 h-5 mx-auto animate-spin text-emerald-500" />
+                          <p className="text-xs font-semibold">Fetching recent WhatsApp property listings...</p>
+                        </div>
+                      ) : filteredInboundMessages.length === 0 ? (
+                        <div className="py-6 text-center text-slate-400 space-y-1">
+                          <p className="font-semibold text-xs text-slate-600">No matching WhatsApp messages found.</p>
+                          <p className="text-[11px] text-slate-400">
+                            Try searching a different keyword or forward a listing to +91 89560 40220.
+                          </p>
+                        </div>
+                      ) : (
+                        filteredInboundMessages.map((msg) => {
+                          const ext = msg.parsed.extractedFields;
+                          const isSelected = selectedInboundId === msg.id;
+
+                          return (
+                            <div
+                              key={msg.id}
+                              className={`p-3 rounded-xl border transition-all text-xs ${
+                                isSelected
+                                  ? 'bg-emerald-50/90 border-emerald-400 ring-2 ring-emerald-500/20 shadow-xs'
+                                  : 'bg-white hover:bg-emerald-50/30 border-emerald-100 hover:border-emerald-200 shadow-2xs'
+                              }`}
+                            >
+                              <div className="flex flex-wrap items-center justify-between gap-1.5 mb-1.5">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-bold text-slate-800 text-[11px]">
+                                    {msg.pushName || 'WhatsApp Contact'}
+                                  </span>
+                                  <span className="text-[10px] text-slate-500 font-medium">
+                                    ({msg.formattedFromNumber})
+                                  </span>
+                                  <span className="text-[10px] text-slate-400 font-medium">
+                                    · {msg.relativeTime}
+                                  </span>
+                                </div>
+
+                                <div className="flex items-center gap-1.5">
+                                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                                    <Sparkles className="w-2.5 h-2.5 text-emerald-600" />
+                                    <span>{msg.confidenceScore}% Match</span>
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* Message Snippet */}
+                              <p className="text-[11px] text-slate-600 line-clamp-2 mb-2 leading-relaxed whitespace-pre-line font-normal">
+                                {msg.text}
+                              </p>
+
+                              {/* Detected Attributes Bar & 1-Click Action */}
+                              <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-100">
+                                <div className="flex flex-wrap items-center gap-1 text-[10px] font-semibold text-slate-700">
+                                  {ext.bhk && (
+                                    <span className="px-1.5 py-0.5 bg-amber-50 text-amber-800 border border-amber-200 rounded">
+                                      {ext.bhk}
+                                    </span>
+                                  )}
+                                  {ext.locality && (
+                                    <span className="px-1.5 py-0.5 bg-blue-50 text-blue-800 border border-blue-200 rounded">
+                                      📍 {ext.locality}
+                                    </span>
+                                  )}
+                                  {ext.price && (
+                                    <span className="px-1.5 py-0.5 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded">
+                                      💰 {ext.price}
+                                    </span>
+                                  )}
+                                  {ext.areaSqFt && (
+                                    <span className="px-1.5 py-0.5 bg-slate-100 text-slate-700 rounded">
+                                      📐 {ext.areaSqFt} sq.ft
+                                    </span>
+                                  )}
+                                  {ext.legalStatus?.nmrdaApproved && (
+                                    <span className="px-1.5 py-0.5 bg-teal-50 text-teal-800 border border-teal-200 rounded">
+                                      ⚖️ NMRDA &amp; RL
+                                    </span>
+                                  )}
+                                </div>
+
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedInboundId(msg.id);
+                                    handleParseWhatsAppText(msg.text, msg.pushName, msg.fromNumber);
+                                  }}
+                                  className={`inline-flex items-center gap-1 px-3 py-1 rounded-lg font-bold text-[11px] transition-all cursor-pointer ${
+                                    isSelected
+                                      ? 'bg-emerald-700 text-white shadow-2xs'
+                                      : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs'
+                                  }`}
+                                >
+                                  <Zap className="w-3 h-3 fill-current" />
+                                  <span>{isSelected ? '✓ Inserted' : '⚡ 1-Click Insert'}</span>
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* TAB 2: PASTE RAW TEXT (MANUAL FALLBACK) */}
+                {whatsappImportTab === 'paste' && (
+                  <div className="space-y-2.5">
+                    <textarea
+                      rows={3}
+                      value={whatsappRawText}
+                      onChange={(e) => setWhatsappRawText(e.target.value)}
+                      placeholder="Paste WhatsApp message here... e.g. 'Plot for sale in Besa Nagpur, 1500 sqft, East facing, RL Approved, demand 55 Lakhs. Contact Mr. Sharma 9823012345'"
+                      className="w-full text-xs p-2.5 bg-white border border-emerald-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/30 text-slate-800 font-medium"
+                    />
+
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleParseWhatsAppText(whatsappRawText)}
+                          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition-colors cursor-pointer"
+                        >
+                          <Zap className="w-3.5 h-3.5 fill-current" />
+                          <span>Parse &amp; Auto-fill Form</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const sample = '3 BHK Flat for sale in Manish Nagar near Besa Square, 1450 sqft super builtup, East facing, Semi Furnished, 2nd floor, Lift, Car Parking, RL and NMRDA approved, Clear title. Demand 68 Lakhs negotiable. Owner: Ramesh Agrawal 9890123456';
+                            setWhatsappRawText(sample);
+                            handleParseWhatsAppText(sample);
+                          }}
+                          className="text-[11px] font-bold text-emerald-700 hover:text-emerald-900 bg-white border border-emerald-200 hover:bg-emerald-50 px-2.5 py-1.5 rounded-xl transition-colors cursor-pointer"
+                        >
+                          Insert Sample Message
+                        </button>
+                      </div>
+
+                      {whatsappRawText && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setWhatsappRawText('');
+                            setParseNotice(null);
+                          }}
+                          className="text-[11px] text-slate-500 hover:text-slate-700 underline"
+                        >
+                          Clear Text
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Shared Parse Notice */}
                 {parseNotice && (
                   <div
-                    className={`p-2.5 rounded-xl text-xs font-semibold flex items-center gap-2 border ${
+                    className={`p-2.5 rounded-xl text-xs font-semibold flex items-center gap-2 border animate-in fade-in ${
                       parseNotice.tone === 'ok'
-                        ? 'bg-emerald-100/80 text-emerald-900 border-emerald-300'
+                        ? 'bg-emerald-100/90 text-emerald-900 border-emerald-300'
                         : parseNotice.tone === 'info'
                         ? 'bg-blue-50 text-blue-900 border-blue-200'
                         : 'bg-amber-50 text-amber-900 border-amber-200'

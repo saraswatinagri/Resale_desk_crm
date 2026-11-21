@@ -26,6 +26,7 @@ interface PropertiesDeskProps {
   saraswatiProjects?: SaraswatiProject[];
   onOpenAddProperty: () => void;
   onOpenAddFromWhatsApp?: () => void;
+  onOpenWhatsAppPropertyInbox?: () => void;
   onViewProperty: (prop: ResaleProperty) => void;
   onUpdatePropertyStatus: (propId: string, status: PropertyStatus) => void;
   onDeleteProperty: (propId: string) => void;
@@ -37,6 +38,7 @@ export const PropertiesDesk: React.FC<PropertiesDeskProps> = ({
   saraswatiProjects = [],
   onOpenAddProperty,
   onOpenAddFromWhatsApp,
+  onOpenWhatsAppPropertyInbox,
   onViewProperty,
   onUpdatePropertyStatus,
   onDeleteProperty,
@@ -145,17 +147,33 @@ export const PropertiesDesk: React.FC<PropertiesDeskProps> = ({
           </button>
         </div>
 
-        {/* Action buttons: Register Property + Add from WhatsApp */}
-        <div className="flex items-center gap-2 shrink-0">
+        {/* Action buttons: WhatsApp Ingestion Queue + Register Property */}
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
+          {onOpenWhatsAppPropertyInbox && (
+            <button
+              type="button"
+              onClick={onOpenWhatsAppPropertyInbox}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-xs shadow-sm transition-all cursor-pointer relative"
+              title="Open Direct WhatsApp Inbound Queue - 1-click review & publish incoming properties"
+            >
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-300 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-white" />
+              </span>
+              <MessageSquare className="w-3.5 h-3.5 text-emerald-100" />
+              <span>WhatsApp Inbound Queue</span>
+            </button>
+          )}
+
           {onOpenAddFromWhatsApp && (
             <button
               type="button"
               onClick={onOpenAddFromWhatsApp}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm transition-all cursor-pointer"
-              title="Add property by parsing a WhatsApp message from seller or broker"
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white border border-emerald-300 hover:bg-emerald-50 text-emerald-800 font-bold text-xs shadow-2xs transition-all cursor-pointer"
+              title="Add property with Direct WhatsApp importer"
             >
-              <MessageSquare className="w-3.5 h-3.5 text-emerald-100" />
-              <span>Add from WhatsApp</span>
+              <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Insert via WhatsApp</span>
             </button>
           )}
 

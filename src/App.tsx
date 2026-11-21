@@ -17,6 +17,7 @@ import { WhatsAppTemplatesModal } from './components/tools/WhatsAppTemplatesModa
 import { WhatsAppConnectModal } from './components/whatsapp/WhatsAppConnectModal';
 import { LeadWhatsAppWindow } from './components/whatsapp/LeadWhatsAppWindow';
 import { WebsiteApiModal } from './components/tools/WebsiteApiModal';
+import { WhatsAppPropertyInboxModal } from './components/properties/WhatsAppPropertyInboxModal';
 import { storage } from './services/storage';
 import { useAuth } from './lib/auth-context';
 import {
@@ -63,6 +64,7 @@ export function App() {
   const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
   const [isTemplatesOpen, setIsTemplatesOpen] = useState(false);
   const [isWhatsAppConnectOpen, setIsWhatsAppConnectOpen] = useState(false);
+  const [isWhatsAppPropertyInboxOpen, setIsWhatsAppPropertyInboxOpen] = useState(false);
   const [isWebsiteApiOpen, setIsWebsiteApiOpen] = useState(false);
   const [propertyPrefill, setPropertyPrefill] = useState<Partial<ResaleProperty> | null>(null);
   const [openWithWhatsAppImport, setOpenWithWhatsAppImport] = useState(false);
@@ -494,6 +496,7 @@ export function App() {
                 setOpenWithWhatsAppImport(true);
                 setIsAddPropertyOpen(true);
               }}
+              onOpenWhatsAppPropertyInbox={() => setIsWhatsAppPropertyInboxOpen(true)}
               onViewProperty={setActiveProperty}
               onUpdatePropertyStatus={handleUpdatePropertyStatus}
               onDeleteProperty={handleDeleteProperty}
@@ -545,6 +548,24 @@ export function App() {
           onSaveProperty={handleSaveProperty}
           initialPrefill={propertyPrefill}
           defaultOpenWhatsAppImport={openWithWhatsAppImport}
+          onOpenWhatsAppConnect={() => setIsWhatsAppConnectOpen(true)}
+        />
+      )}
+
+      {isWhatsAppPropertyInboxOpen && (
+        <WhatsAppPropertyInboxModal
+          isOpen={isWhatsAppPropertyInboxOpen}
+          onClose={() => setIsWhatsAppPropertyInboxOpen(false)}
+          onInsertIntoForm={(prefill) => {
+            setPropertyPrefill(prefill);
+            setOpenWithWhatsAppImport(true);
+            setIsAddPropertyOpen(true);
+          }}
+          onQuickPublish={async (newProp) => {
+            await handleSaveProperty(newProp);
+            showNotification('Property published from WhatsApp directly to CRM inventory!', 'ok');
+          }}
+          onOpenWhatsAppConnect={() => setIsWhatsAppConnectOpen(true)}
         />
       )}
 
