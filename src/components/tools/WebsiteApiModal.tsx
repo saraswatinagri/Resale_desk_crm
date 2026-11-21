@@ -464,9 +464,13 @@ async function submitWebsiteEnquiry(leadData) {
                 <button
                   onClick={() =>
                     copyToClipboard(
-`curl -X POST https://resaledesk.saraswatinagri.com/api/whatsapp/parse \\
+`// Parse AND Auto-Register property directly into CRM database:
+curl -X POST https://resaledesk.saraswatinagri.com/api/whatsapp/parse \\
   -H "Content-Type: application/json" \\
-  -d '{"message": "For sale 1500 sqft residential plot in Besa Nagpur, RL approved, 52 Lakhs. Owner 9823012345"}'`,
+  -d '{
+    "message": "For sale 1500 sqft residential plot in Besa Nagpur, RL approved, 52 Lakhs. Owner 9823012345",
+    "autoSave": true
+  }'`,
                       'curl-wa'
                     )
                   }
@@ -477,9 +481,18 @@ async function submitWebsiteEnquiry(leadData) {
                 </button>
 
                 <pre className="overflow-x-auto leading-relaxed">
-{`curl -X POST https://resaledesk.saraswatinagri.com/api/whatsapp/parse \\
+{`// Option 1: Parse & Auto-Save property directly to CRM Database
+curl -X POST https://resaledesk.saraswatinagri.com/api/whatsapp/parse \\
   -H "Content-Type: application/json" \\
-  -d '{"message": "For sale 1500 sqft residential plot in Besa Nagpur, RL approved, 52 Lakhs. Owner 9823012345"}'`}
+  -d '{
+    "message": "For sale 1500 sqft residential plot in Besa Nagpur, RL approved, 52 Lakhs. Owner 9823012345",
+    "autoSave": true
+  }'
+
+// Option 2: Parse text only without saving
+curl -X POST https://resaledesk.saraswatinagri.com/api/whatsapp/parse \\
+  -H "Content-Type: application/json" \\
+  -d '{"message": "3 BHK Flat in Manish Nagar, 1450 sqft, East facing, demand 68L. Call 9890123456"}'`}
                 </pre>
               </div>
             </div>

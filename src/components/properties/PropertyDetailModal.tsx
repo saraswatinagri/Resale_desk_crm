@@ -14,7 +14,9 @@ import {
   Building2,
   Calendar,
   Send,
-  ExternalLink
+  ExternalLink,
+  Loader2,
+  UserCheck
 } from 'lucide-react';
 import { ResaleProperty, ResaleLead, PropertyStatus } from '../../types/crm';
 import { 
@@ -23,6 +25,8 @@ import {
   buildPropertyPitchMessage 
 } from '../../utils/formatters';
 import { getMatchingLeadsForProperty } from '../../utils/matcher';
+import { sendLeadWhatsAppMessage } from '../../services/whatsappService';
+import { toast } from '../../utils/toast';
 
 interface PropertyDetailModalProps {
   property: ResaleProperty | null;
@@ -47,8 +51,57 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
   const [copiedBrochure, setCopiedBrochure] = useState(false);
   const [selectedImageIdx, setSelectedImageIdx] = useState(0);
 
+  // WhatsApp Direct Posting State
+  const [selectedLeadId, setSelectedLeadId] = useState<string>('');
+  const [customPhone, setCustomPhone] = useState<string>('');
+  const [customName, setCustomName] = useState<string>('');
+  const [pitchLanguage, setPitchLanguage] = useState<'Hindi' | 'Marathi' | 'English'>('Hindi');
+  const [isSendingWhatsApp, setIsSendingWhatsApp] = useState<boolean>(false);
+
   // Compute matching leads
   const matchedLeads = getMatchingLeadsForProperty(property, leads);
+
+  const selectedLead = leads.find((l) => l.id === selectedLeadId) || null;
+  const targetPhone = selectedLead ? (selectedLead.whatsapp || selectedLead.phone) : customPhone;
+  const targetName = selectedLead ? selectedLead.name : (customName.trim() || 'Sir/Madam');
+
+  const buildCustomPitch = () => {
+    if (pitchLanguage === 'Hindi') {
+      return `नमस्ते ${targetName} जी! 🙏\n\nसरस्वती नगरी / नागपुर प्रॉपर्टीज रिसेल डेस्क से आपके लिए एक सत्यापित प्रॉपर्टी का विवरण:\n\n🏡 *${property.title}*\n📍 *लोकेशन:* ${property.locality}, ${property.corridor}, नागपुर\n💰 *कीमत:* ${property.price} (${property.ratePerSqFt ? `₹${property.ratePerSqFt}/sq.ft` : ''})\n📏 *साइज:* ${property.areaSqFt} sq.ft (${property.bhk || 'Plot'})\n🧭 *फेसिंग:* ${property.facing || 'East'}\n✅ *स्वीकृतियां:* ${property.legalStatus.nmrdaApproved ? 'NMRDA Approved, ' : ''}${property.legalStatus.rlAvailable ? 'RL Available, ' : ''}${property.legalStatus.clearTitle ? 'क्लियर 7/12 टाइटल' : ''}\n\nक्या आप इस वीकेंड साइट विजिट प्लान करना चाहेंगे?\n\n- नागपुर प्रॉपर्टीज & सरस्वती नगरी रिसेल डेस्क\n📞 कॉल / हेल्पलाइन: +91 89560 40220`;
+    } else if (pitchLanguage === 'Marathi') {
+      return `नमस्कार ${targetName} जी! 🙏\n\nसरस्वती नगरी / नागपूर प्रॉपर्टीज रिसेल डेस्कवरून आपल्यासाठी निवडक रिसेल प्रॉपर्टी:\n\n🏡 *${property.title}*\n📍 *पत्ता:* ${property.locality}, ${property.corridor}, नागपूर\n💰 *किंमत:* ${property.price}\n📏 *क्षेत्रफळ:* ${property.areaSqFt} sq.ft (${property.bhk || 'Plot'})\n✅ *मंजूरी:* ${property.legalStatus.nmrdaApproved ? 'NMRDA मंजूर, ' : ''}${property.legalStatus.rlAvailable ? 'RL उपलब्ध, ' : ''}क्लिअर टायटल\n\nप्रत्यक्ष पाहणीसाठी (Site Visit) केव्हा वेळ होईल?\n\n- सरस्वती नगरी रिसेल डेस्क\n📞 संपर्क: +91 89560 40220`;
+    } else {
+      return `Hello ${targetName},\n\nGreetings from Saraswati Nagri & Nagpur Properties Resale Desk. Review this verified resale property matching your preferences:\n\n🏡 *${property.title}*\n📍 *Location:* ${property.locality}, ${property.corridor}, Nagpur\n💰 *Price:* ${property.price}\n📏 *Area:* ${property.areaSqFt} sq.ft (${property.bhk || 'Plot'})\n🧭 *Facing:* ${property.facing || 'East'}\n✅ *Legal:* ${property.legalStatus.nmrdaApproved ? 'NMRDA Sanctioned, ' : ''}${property.legalStatus.rlAvailable ? 'RL in hand, ' : ''}Clear Title\n\nWould you like to schedule a private site visit this weekend?\n\n- Resale Desk | Saraswati Nagri\n📞 Contact: +91 89560 40220`;
+    }
+  };
+
+  const handleSendDirectWhatsApp = async () => {
+    if (!targetPhone.trim()) {
+      toast.error('Please select a lead or enter a phone number');
+      return;
+    }
+
+    setIsSendingWhatsApp(true);
+    try {
+      const pitch = buildCustomPitch();
+      const res = await sendLeadWhatsAppMessage({
+        leadId: selectedLead?.id || '',
+        phone: targetPhone,
+        leadName: targetName,
+        text: pitch,
+      });
+
+      if (res.success) {
+        toast.success(`Property details posted to WhatsApp (+91 ${targetPhone.replace(/\D/g, '').slice(-10)})!`);
+      } else {
+        toast.error(res.error || 'Could not dispatch WhatsApp message');
+      }
+    } catch (err: any) {
+      toast.error('Send error: ' + (err.message || 'Unknown'));
+    } finally {
+      setIsSendingWhatsApp(false);
+    }
+  };
 
   const brochureText = `🏡 *EXCLUSIVE PROPERTY FOR SALE / RESALE*\n*Nagpur Properties & Saraswati Nagri Resale Desk*\n\n📍 *Title:* ${property.title}\n🗺️ *Location:* ${property.locality}, ${property.corridor}, Nagpur\n💰 *Price:* ${property.price} (${property.ratePerSqFt ? `₹${property.ratePerSqFt}/sq.ft` : ''})\n📏 *Area:* ${property.areaSqFt} sq.ft (${property.bhk || 'Plot'})\n🧭 *Facing:* ${property.facing || 'East'}\n🛋️ *Furnishing:* ${property.furnishing || 'Semi-Furnished'}\n\n✅ *LEGAL SANCTIONS & VERIFICATION:*\n${property.legalStatus.nmrdaApproved ? '• NMRDA Sanctioned Layout\n' : ''}${property.legalStatus.rlAvailable ? '• Release Letter (RL) in hand\n' : ''}${property.legalStatus.reraRegistered ? `• MahaRERA Registered: ${property.legalStatus.reraNumber || 'Verified'}\n` : ''}${property.legalStatus.clearTitle ? '• 7/12 & Khasra Clear Title\n' : ''}${property.legalStatus.loanEligible ? '• SBI & Nationalized Bank Loans Approved\n' : ''}\n🌟 *Highlights:*\n${property.highlights.map(h => `• ${h}`).join('\n')}\n\n📞 For Private Site Visit & Negotiation:\nCall / WhatsApp: 8275437826 / 8956040220 (Resale Desk)`;
 
@@ -406,32 +459,174 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
             </div>
           )}
 
-          {/* TAB 3: SHARE & WHATSAPP BROCHURE */}
+          {/* TAB 3: SHARE & POST PROPERTY ON WHATSAPP */}
           {activeTab === 'share' && (
-            <div className="space-y-4 text-xs">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-                    <Share2 className="h-4 w-4 text-teal-600" />
-                    Shareable Property Brochure
-                  </h3>
-                  <p className="text-xs text-slate-500">
-                    Ready-to-send formatted text with complete specs, legal approvals, and pricing
-                  </p>
+            <div className="space-y-5 text-xs">
+              
+              {/* WhatsApp Post / Dispatch Box */}
+              <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-2xl p-4 space-y-3.5 shadow-xs">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-xs">
+                      <MessageSquare className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-xs text-emerald-950">
+                        Post Property Details to WhatsApp
+                      </h4>
+                      <p className="text-[11px] text-emerald-700">
+                        Send instant verified pitch to a CRM buyer lead or custom WhatsApp number
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Language Selector */}
+                  <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-emerald-200 text-[10px] font-bold">
+                    {(['Hindi', 'Marathi', 'English'] as const).map((lang) => (
+                      <button
+                        key={lang}
+                        type="button"
+                        onClick={() => setPitchLanguage(lang)}
+                        className={`px-2 py-0.5 rounded-lg transition-all ${
+                          pitchLanguage === lang
+                            ? 'bg-emerald-600 text-white'
+                            : 'text-slate-600 hover:text-emerald-800'
+                        }`}
+                      >
+                        {lang}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
-                <button
-                  onClick={handleCopyBrochure}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold border border-slate-200 transition-all"
-                >
-                  <Copy className="h-3.5 w-3.5" />
-                  <span>{copiedBrochure ? 'Copied to Clipboard!' : 'Copy Brochure'}</span>
-                </button>
+                {/* Recipient Selection */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wide block mb-1">
+                      Select Lead from CRM Directory
+                    </label>
+                    <select
+                      value={selectedLeadId}
+                      onChange={(e) => {
+                        setSelectedLeadId(e.target.value);
+                        if (e.target.value) {
+                          setCustomPhone('');
+                        }
+                      }}
+                      className="w-full p-2 bg-white border border-emerald-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+                    >
+                      <option value="">-- Choose Buyer Lead (or enter custom number) --</option>
+                      {leads.map((l) => (
+                        <option key={l.id} value={l.id}>
+                          {l.name} ({l.phone || l.whatsapp}) · {l.budgetDisplay || 'Enquiry'}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wide block mb-1">
+                      Or Custom WhatsApp Number &amp; Name
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="Client Name (e.g. Rahul)"
+                        value={customName}
+                        onChange={(e) => setCustomName(e.target.value)}
+                        className="w-1/2 p-2 bg-white border border-emerald-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none"
+                      />
+                      <input
+                        type="tel"
+                        placeholder="10-digit Phone"
+                        value={customPhone}
+                        onChange={(e) => {
+                          setCustomPhone(e.target.value);
+                          if (e.target.value) setSelectedLeadId('');
+                        }}
+                        className="w-1/2 p-2 bg-white border border-emerald-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Live Message Preview */}
+                <div className="bg-white rounded-xl p-3 border border-emerald-200/80 text-[11px] text-slate-800 whitespace-pre-wrap font-sans leading-relaxed max-h-36 overflow-y-auto">
+                  {buildCustomPitch()}
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleSendDirectWhatsApp}
+                      disabled={isSendingWhatsApp || !targetPhone}
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white font-bold text-xs shadow-sm transition-all cursor-pointer"
+                    >
+                      {isSendingWhatsApp ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Send className="w-3.5 h-3.5" />
+                      )}
+                      <span>Post via WhatsApp Gateway</span>
+                    </button>
+
+                    {targetPhone && (
+                      <a
+                        href={generateWhatsAppLink(targetPhone, buildCustomPitch())}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 text-emerald-800 border border-emerald-300 font-bold text-xs transition-colors cursor-pointer"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        <span>Open WhatsApp Web</span>
+                      </a>
+                    )}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(buildCustomPitch());
+                      toast.success('Pitch text copied to clipboard!');
+                    }}
+                    className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-600 hover:text-slate-900 underline"
+                  >
+                    <Copy className="w-3 h-3" />
+                    <span>Copy Text</span>
+                  </button>
+                </div>
               </div>
 
-              <div className="p-4 rounded-xl bg-white font-mono text-[11px] text-slate-700 border border-slate-200 whitespace-pre-wrap leading-relaxed shadow-sm">
-                {brochureText}
+              {/* Standard Master Brochure View */}
+              <div className="border border-slate-200 rounded-2xl p-4 bg-white space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-bold text-xs text-slate-800 flex items-center gap-1.5">
+                      <Share2 className="w-3.5 h-3.5 text-teal-600" />
+                      Master Marketing Brochure
+                    </h4>
+                    <p className="text-[11px] text-slate-500">
+                      Full marketing flyer format with 12-point legal audit &amp; features
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleCopyBrochure}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold border border-slate-200 transition-all cursor-pointer"
+                  >
+                    <Copy className="h-3.5 w-3.5" />
+                    <span>{copiedBrochure ? 'Copied!' : 'Copy Flyer'}</span>
+                  </button>
+                </div>
+
+                <div className="p-3.5 rounded-xl bg-slate-50 font-mono text-[11px] text-slate-700 border border-slate-200 whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto">
+                  {brochureText}
+                </div>
               </div>
+
             </div>
           )}
 

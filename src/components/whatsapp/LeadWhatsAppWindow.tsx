@@ -43,6 +43,7 @@ export interface LeadWhatsAppWindowProps {
   onConnect: () => void;
   variant?: 'overlay' | 'panel';
   onConvertToProperty?: (prefill: Partial<ResaleProperty>) => void;
+  properties?: ResaleProperty[];
 }
 
 const IST = 'Asia/Kolkata';
@@ -152,6 +153,7 @@ export const LeadWhatsAppWindow: React.FC<LeadWhatsAppWindowProps> = ({
   onConnect,
   variant = 'overlay',
   onConvertToProperty,
+  properties = [],
 }) => {
   const [messages, setMessages] = useState<WhatsAppMessageItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -160,7 +162,22 @@ export const LeadWhatsAppWindow: React.FC<LeadWhatsAppWindowProps> = ({
   const [language, setLanguage] = useState<WaLanguage>(preferredLanguage);
   const [activeSession, setActiveSession] = useState<WhatsAppSession | null>(null);
   const [sessionsCount, setSessionsCount] = useState(0);
+  const [isPropertyPickerOpen, setIsPropertyPickerOpen] = useState(false);
+  const [propertySearch, setPropertySearch] = useState('');
   const endRef = useRef<HTMLDivElement>(null);
+
+  // Generate and insert pitch for chosen property
+  const handleSelectPropertyPitch = (prop: ResaleProperty) => {
+    const pitch =
+      language === 'Marathi'
+        ? `नमस्कार ${leadName || 'जी'}! 🙏\n\nआपल्यासाठी निवडक रिसेल प्रॉपर्टी:\n\n🏡 *${prop.title}*\n📍 पत्ता: ${prop.locality}, ${prop.corridor}, नागपूर\n💰 किंमत: ${prop.price}\n📏 क्षेत्रफळ: ${prop.areaSqFt} sq.ft (${prop.bhk || 'Plot'})\n✅ ${prop.legalStatus.nmrdaApproved ? 'NMRDA मंजूर, ' : ''}क्लिअर टायटल\n\nआपण ही प्रॉपर्टी प्रत्यक्ष पाहण्यासाठी (Site Visit) केव्हा येऊ शकता?\n\n- सरस्वती नगरी रिसेल डेस्क`
+        : language === 'English'
+        ? `Hello ${leadName || 'Sir/Madam'},\n\nCheck out this verified resale property matching your preferences:\n\n🏡 *${prop.title}*\n📍 Location: ${prop.locality}, ${prop.corridor}, Nagpur\n💰 Price: ${prop.price}\n📏 Area: ${prop.areaSqFt} sq.ft (${prop.bhk || 'Plot'})\n🧭 Facing: ${prop.facing || 'East'}\n✅ ${prop.legalStatus.nmrdaApproved ? 'NMRDA Approved, ' : ''}Clear Title\n\nWould you like to schedule a site visit this weekend?\n\n- Resale Desk | Nagpur Properties`
+        : `नमस्ते ${leadName || 'जी'}! 🙏\n\nआपके लिए एक सत्यापित रिसेल प्रॉपर्टी का विवरण:\n\n🏡 *${prop.title}*\n📍 लोकेशन: ${prop.locality}, ${prop.corridor}, नागपुर\n💰 कीमत: ${prop.price}\n📏 साइज: ${prop.areaSqFt} sq.ft (${prop.bhk || 'Plot'})\n🧭 फेसिंग: ${prop.facing || 'East'}\n✅ ${prop.legalStatus.nmrdaApproved ? 'NMRDA Approved, ' : ''}क्लियर 7/12 टाइटल\n\nक्या आप इस प्रॉपर्टी की साइट विजिट प्लान करना चाहेंगे?\n\n- सरस्वती नगरी & नागपुर प्रॉपर्टीज रिसेल डेस्क`;
+
+    setChatMessage(pitch);
+    setIsPropertyPickerOpen(false);
+  };
 
   // Convert chat text or specific message to structured resale property
   const handleConvertChatToProperty = (specificText?: string) => {
@@ -494,6 +511,18 @@ export const LeadWhatsAppWindow: React.FC<LeadWhatsAppWindowProps> = ({
       {/* 5. Quick Replies Chips Bar */}
       <div className="bg-[#f0f2f5] border-t border-black/5 px-2.5 py-2 shrink-0">
         <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide pb-1">
+          {properties && properties.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setIsPropertyPickerOpen(!isPropertyPickerOpen)}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-500 hover:bg-amber-600 text-white text-[11px] font-bold shrink-0 transition-colors cursor-pointer shadow-2xs"
+              title="Select a property from CRM inventory to pitch over WhatsApp"
+            >
+              <Building2 className="w-3 h-3" />
+              <span>🏡 Share Property Details</span>
+            </button>
+          )}
+
           {QUICK_CHIPS.map((chip) => {
             const Icon = chip.icon;
             return (
@@ -509,6 +538,56 @@ export const LeadWhatsAppWindow: React.FC<LeadWhatsAppWindowProps> = ({
             );
           })}
         </div>
+
+        {/* Property Picker Dropdown */}
+        {isPropertyPickerOpen && (
+          <div className="mt-1 mb-1 p-2.5 bg-white border border-amber-200 rounded-xl shadow-md max-h-52 overflow-y-auto space-y-1.5 animate-in fade-in">
+            <div className="flex items-center justify-between pb-1 border-b border-slate-100">
+              <span className="text-[11px] font-black text-slate-800">Choose Resale Property to Pitch:</span>
+              <button
+                type="button"
+                onClick={() => setIsPropertyPickerOpen(false)}
+                className="text-[10px] text-slate-400 hover:text-slate-600 font-bold"
+              >
+                ✕ Close
+              </button>
+            </div>
+            <input
+              type="text"
+              placeholder="Search by title, Besa, Manish Nagar, BHK..."
+              value={propertySearch}
+              onChange={(e) => setPropertySearch(e.target.value)}
+              className="w-full text-xs p-1.5 bg-slate-50 border border-slate-200 rounded-lg outline-none font-medium"
+            />
+            <div className="space-y-1 pt-0.5">
+              {properties
+                .filter(
+                  (p) =>
+                    !propertySearch.trim() ||
+                    p.title.toLowerCase().includes(propertySearch.toLowerCase()) ||
+                    p.locality.toLowerCase().includes(propertySearch.toLowerCase()) ||
+                    (p.bhk || '').toLowerCase().includes(propertySearch.toLowerCase())
+                )
+                .slice(0, 8)
+                .map((prop) => (
+                  <button
+                    key={prop.id}
+                    type="button"
+                    onClick={() => handleSelectPropertyPitch(prop)}
+                    className="w-full text-left p-1.5 rounded-lg hover:bg-amber-50 border border-slate-100 hover:border-amber-200 transition-colors flex items-center justify-between gap-2 cursor-pointer"
+                  >
+                    <div className="min-w-0">
+                      <p className="font-bold text-xs text-slate-900 truncate">{prop.title}</p>
+                      <p className="text-[10px] text-slate-500 font-medium">
+                        {prop.locality} · {prop.bhk || prop.category} · {prop.areaSqFt} sqft
+                      </p>
+                    </div>
+                    <span className="text-xs font-black text-emerald-700 shrink-0">{prop.price}</span>
+                  </button>
+                ))}
+            </div>
+          </div>
+        )}
 
         {/* 6. Composer & Send Controls */}
         <div className="mt-1 flex gap-2 items-end">

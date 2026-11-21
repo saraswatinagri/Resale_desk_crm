@@ -15,6 +15,7 @@ import {
   ChevronRight,
   Layers,
   Ruler,
+  Share2,
 } from 'lucide-react';
 import { ResaleProperty, PropertyStatus, SaraswatiProject } from '../../types/crm';
 import { generateWhatsAppLink } from '../../utils/formatters';
@@ -413,6 +414,14 @@ export const PropertiesDesk: React.FC<PropertiesDeskProps> = ({
                       >
                         <Sparkles className="w-3.5 h-3.5" />
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => onViewProperty(prop)}
+                        title="Post / Share Property on WhatsApp"
+                        className="p-1.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100 cursor-pointer"
+                      >
+                        <Share2 className="w-3.5 h-3.5" />
+                      </button>
                       {prop.owner.phone && (
                         <a
                           href={`tel:${prop.owner.phone}`}
@@ -522,6 +531,14 @@ export const PropertiesDesk: React.FC<PropertiesDeskProps> = ({
                             title="Match Buyers"
                           >
                             <Sparkles className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onViewProperty(prop)}
+                            className="p-1.5 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer"
+                            title="Share on WhatsApp"
+                          >
+                            <Share2 className="w-3.5 h-3.5" />
                           </button>
                           <button
                             type="button"

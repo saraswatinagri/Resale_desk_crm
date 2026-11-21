@@ -572,6 +572,7 @@ export function App() {
           onClose={() => setWhatsAppLead(null)}
           onConnect={() => setIsWhatsAppConnectOpen(true)}
           variant="overlay"
+          properties={properties}
           onConvertToProperty={(prefill) => {
             setPropertyPrefill(prefill);
             setOpenWithWhatsAppImport(true);
