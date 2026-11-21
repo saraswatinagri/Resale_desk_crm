@@ -1,4 +1,4 @@
-import { supabaseDb } from '../lib/supabase';
+import { authedFetch, supabaseDb } from '../lib/supabase';
 import { generateWhatsAppLink } from '../utils/formatters';
 import { parseWhatsAppPropertyMessage, ParsedPropertyFromWhatsApp } from '../utils/whatsappPropertyParser';
 
@@ -65,28 +65,6 @@ export function formatPhoneDisplay(raw?: string | null): string {
   return raw.startsWith('+') ? raw : `+${digits}`;
 }
 
-export function getEvolutionConfig() {
-  const apiUrl = (
-    import.meta.env.VITE_EVOLUTION_API_URL ||
-    (typeof window !== 'undefined' && (window as any).__ENV__?.EVOLUTION_API_URL) ||
-    ''
-  ).replace(/\/+$/, '');
-
-  const apiKey =
-    import.meta.env.VITE_EVOLUTION_API_KEY ||
-    (typeof window !== 'undefined' && (window as any).__ENV__?.EVOLUTION_API_KEY) ||
-    '';
-
-  const provider = import.meta.env.VITE_WHATSAPP_PROVIDER || 'evolution';
-
-  return {
-    apiUrl,
-    apiKey,
-    provider,
-    isConfigured: Boolean(apiUrl && apiKey),
-  };
-}
-
 /**
  * Fetch all WhatsApp sessions from public.whatsapp_sessions in Supabase,
  * matched with staff profiles.
@@ -104,7 +82,7 @@ export async function fetchWhatsAppSessions(): Promise<{
     const [{ data: sessionRows, error: sErr }, { data: profiles, error: pErr }] = await Promise.all([
       supabaseDb
         .from('whatsapp_sessions')
-        .select('*')
+        .select('id, agent_id, instance_name, provider, phone_number, status, last_connected_at, last_seen_at, updated_at')
         .order('updated_at', { ascending: false }),
       supabaseDb
         .from('profiles')
@@ -209,46 +187,22 @@ export async function requestWhatsAppInstanceQr(instanceName: string): Promise<{
   state?: string;
   error?: string;
 }> {
-  // 1. Try serverless endpoint first
+  // The gateway key lives on the server; the browser only ever asks our own route.
   try {
-    const res = await fetch(`/api/whatsapp/connect?instanceName=${encodeURIComponent(instanceName)}`);
-    if (res.ok) {
-      const data = await res.json();
-      if (data.qrCode || data.pairingCode) {
-        return {
-          qrCode: data.qrCode,
-          pairingCode: data.pairingCode,
-          state: data.state,
-        };
-      }
+    const res = await authedFetch(`/api/whatsapp/connect?instanceName=${encodeURIComponent(instanceName)}`);
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      return { error: data?.error || 'Could not reach the WhatsApp gateway.' };
     }
-  } catch {
-    // Proceed to direct client attempt
-  }
-
-  // 2. Direct Evolution API attempt if configured in client env
-  const { apiUrl, apiKey, isConfigured } = getEvolutionConfig();
-  if (!isConfigured) {
-    return { error: 'Evolution API not configured. Please set VITE_EVOLUTION_API_URL and VITE_EVOLUTION_API_KEY.' };
-  }
-
-  try {
-    const evoRes = await fetch(`${apiUrl}/instance/connect/${encodeURIComponent(instanceName)}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        apikey: apiKey,
-      },
-    });
-
-    const data = await evoRes.json();
+    if (data?.qrCode || data?.pairingCode) {
+      return { qrCode: data.qrCode, pairingCode: data.pairingCode, state: data.state };
+    }
     return {
-      qrCode: data?.base64 || data?.qrcode?.base64 || data?.code || null,
-      pairingCode: data?.pairingCode || null,
-      state: data?.state || (evoRes.ok ? 'connecting' : 'disconnected'),
+      state: data?.state,
+      error: data?.configured === false ? 'WhatsApp gateway is not configured on the server.' : undefined,
     };
   } catch (err: any) {
-    return { error: err.message || 'Failed to fetch QR code from Evolution API' };
+    return { error: err?.message || 'Could not reach the WhatsApp gateway.' };
   }
 }
 
@@ -275,130 +229,43 @@ export async function sendLeadWhatsAppMessage(params: {
   waLink: string;
   error?: string;
 }> {
-  const { leadId, phone, text, senderAgentId, instanceName } = params;
-  const digits = phone.replace(/\D/g, '');
-  const phone10 = digits.slice(-10);
-  const recipient = `91${phone10}`;
+  const { leadId, phone, text, instanceName } = params;
   const waLink = generateWhatsAppLink(phone, text);
-  const effectiveInstance = instanceName || 'agent_dbc71212-d38b-40cc-8df2-4a99828ff449'; // Default Office Master Line
+  const fallbackId = `RD_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
 
-  let realSent = false;
-  let waMessageId = `RD_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-
-  // Step A: Attempt serverless /api/whatsapp/send
+  // The server sends through the gateway, archives the message and writes the
+  // lead timeline. The sender is taken from the login, not from the browser.
   try {
-    const apiRes = await fetch('/api/whatsapp/send', {
+    const apiRes = await authedFetch('/api/whatsapp/send', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        leadId,
-        phone,
-        text,
-        instanceName: effectiveInstance,
-        senderAgentId,
-      }),
+      body: JSON.stringify({ leadId, phone, text, instanceName }),
     });
+    const data = await apiRes.json().catch(() => null);
 
-    if (apiRes.ok) {
-      const data = await apiRes.json();
-      if (data.ok) {
-        realSent = Boolean(data.delivered);
-        if (data.messageId) waMessageId = data.messageId;
-        return {
-          success: true,
-          realSent,
-          messageId: waMessageId,
-          waLink: data.waLink || waLink,
-        };
-      }
+    if (apiRes.ok && data?.ok) {
+      return {
+        success: true,
+        realSent: Boolean(data.delivered),
+        messageId: data.messageId || fallbackId,
+        waLink: data.waLink || waLink,
+      };
     }
-  } catch {
-    // Fall back to direct dispatch and database write
-  }
-
-  // Step B: Direct Evolution API call if configured
-  const { apiUrl, apiKey, isConfigured } = getEvolutionConfig();
-  if (isConfigured) {
-    try {
-      const evoRes = await fetch(`${apiUrl}/message/sendText/${encodeURIComponent(effectiveInstance)}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          apikey: apiKey,
-        },
-        body: JSON.stringify({
-          number: recipient,
-          text: text.trim(),
-        }),
-      });
-
-      if (evoRes.ok) {
-        const evoData = await evoRes.json();
-        realSent = true;
-        waMessageId = evoData?.key?.id || evoData?.message?.key?.id || evoData?.id || waMessageId;
-      }
-    } catch (evoErr) {
-      console.warn('Direct Evolution API send warning:', evoErr);
-    }
-  }
-
-  // Step C: Archive and sync with Supabase
-  if (!supabaseDb) {
-    return { success: true, realSent, messageId: waMessageId, waLink };
-  }
-
-  try {
-    const now = new Date().toISOString();
-
-    // 1. Insert into public.whatsapp_messages archive
-    await supabaseDb.from('whatsapp_messages').insert({
-      provider: 'evolution',
-      instance_name: effectiveInstance,
-      chat_jid: `${recipient}@s.whatsapp.net`,
-      wa_message_id: waMessageId,
-      direction: 'outbound',
-      from_number: '918956040220',
-      to_number: recipient,
-      text: text.trim(),
-      is_group: false,
-      message_timestamp: now,
-      lead_id: leadId || null,
-      created_at: now,
-    });
-
-    // 2. Insert into public.lead_interactions
-    if (leadId) {
-      await supabaseDb.from('lead_interactions').insert({
-        lead_id: leadId,
-        type: 'whatsapp',
-        content: text.trim(),
-        outcome: realSent ? 'whatsapp_delivered' : 'whatsapp_sent',
-        created_by: senderAgentId || null,
-        created_at: now,
-      });
-
-      // 3. Update public.leads
-      const { data: leadRow } = await supabaseDb
-        .from('leads')
-        .select('interaction_count')
-        .eq('id', leadId)
-        .maybeSingle();
-
-      const currentCount = Number(leadRow?.interaction_count || 0);
-      await supabaseDb
-        .from('leads')
-        .update({
-          last_contacted_at: now,
-          interaction_count: currentCount + 1,
-          updated_at: now,
-        })
-        .eq('id', leadId);
-    }
-
-    return { success: true, realSent, messageId: waMessageId, waLink };
+    return {
+      success: false,
+      realSent: false,
+      messageId: fallbackId,
+      waLink,
+      error: data?.error || 'Message could not be sent from the CRM.',
+    };
   } catch (err: any) {
-    console.warn('WhatsApp database sync warning:', err);
-    return { success: true, realSent, messageId: waMessageId, waLink, error: err.message };
+    return {
+      success: false,
+      realSent: false,
+      messageId: fallbackId,
+      waLink,
+      error: err?.message || 'Could not reach the server.',
+    };
   }
 }
 

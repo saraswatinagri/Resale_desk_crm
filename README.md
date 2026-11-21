@@ -4,6 +4,24 @@ A dedicated real estate brokerage CRM built for the **Resale Desk**, drawing arc
 
 ---
 
+## 🔐 Security model (read before changing anything in `src/lib` or `api/`)
+
+* **The browser only ever holds the public anon key.** The Supabase service-role key bypasses all
+  database security, so it lives only in the server env var `SUPABASE_SERVICE_ROLE_KEY`.
+  Never create a `VITE_`-prefixed secret: Vite copies every `VITE_` value into public JavaScript.
+* **All data goes through `/api/db`.** It checks the employee's login with Supabase Auth, checks the
+  profile is an active staff role, then applies the allowlist in `api/_lib/db-policy.ts`
+  (tables, methods, columns; one-row updates; admin-only deletes). Default is deny.
+* **Login is `/api/auth/login`.** There is no master password and no demo login.
+* **WhatsApp:** `send` and `connect` need a staff login. `webhook` needs the shared secret
+  `EVOLUTION_WEBHOOK_TOKEN` (`?token=` on the webhook URL). Auto-saving through `parse` needs a staff
+  login or the `INGEST_API_KEY` header.
+* **Public website routes** (`GET /api/properties`, `POST /api/leads`, `POST /api/properties`) never
+  return owner details, and public submissions are saved as unverified.
+* Run `npm test` before every deploy — the tests are the proof that these rules hold.
+
+---
+
 ## 🌟 Key Functional Modules
 
 ### 1. 👥 Leads Management Section (Demand & Supply)

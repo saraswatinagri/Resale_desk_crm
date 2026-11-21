@@ -1,35 +1,19 @@
-import { createClient } from '@supabase/supabase-js';
 import { parseWhatsAppPropertyMessage } from '../../src/utils/whatsappPropertyParser';
+import { getAdminClient, requireStaff, safeEqual, sendError } from '../_lib/server';
 
-const supabaseUrl =
-  process.env.VITE_SUPABASE_URL ||
-  process.env.NEXT_PUBLIC_SUPABASE_URL ||
-  'https://bdrmbhbzlbudpfvqdjga.supabase.co';
-const supabaseKey =
-  process.env.VITE_SUPABASE_SERVICE_ROLE_KEY ||
-  process.env.SUPABASE_SERVICE_ROLE_KEY ||
-  process.env.VITE_SUPABASE_ANON_KEY ||
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJkcm1iaGJ6bGJ1ZHBmdnFkamdhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4NDk5MDQsImV4cCI6MjA5MDQyNTkwNH0.o9n1G_21xuYofTY2g0HqoGWU1tUAvyJ6bLCwoJH0pOY';
-
-const supabase = createClient(supabaseUrl, supabaseKey);
-
-function setCorsHeaders(res: any) {
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,POST');
-  res.setHeader(
-    'Access-Control-Allow-Headers',
-    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, x-api-key, Authorization'
-  );
+/**
+ * Reading a message (no save) is harmless and open.
+ * SAVING a property + lead needs either a logged-in employee, or an automation
+ * that sends the secret INGEST_API_KEY in an x-api-key header.
+ */
+async function requireWriter(req: any): Promise<void> {
+  const expected = (process.env.INGEST_API_KEY || '').trim();
+  const given = String(req.headers?.['x-api-key'] || '');
+  if (expected.length >= 16 && safeEqual(given, expected)) return;
+  await requireStaff(req);
 }
 
 export default async function handler(req: any, res: any) {
-  setCorsHeaders(res);
-
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-
   if (req.method === 'GET') {
     return res.status(200).json({
       status: 'active',
@@ -48,7 +32,7 @@ export default async function handler(req: any, res: any) {
         body.content ||
         (typeof body === 'string' ? body : '');
 
-      if (!rawText || typeof rawText !== 'string' || !rawText.trim()) {
+      if (!rawText || typeof rawText !== 'string' || !rawText.trim() || rawText.length > 8000) {
         return res.status(400).json({
           success: false,
           error: 'Text or message string is required in request body',
@@ -64,7 +48,10 @@ export default async function handler(req: any, res: any) {
       let propertyCode: string | null = null;
       let leadId: string | null = null;
 
-      if (shouldAutoSave && parsed.confidenceScore >= 20) {
+      if (shouldAutoSave) await requireWriter(req);
+      const supabase = shouldAutoSave ? getAdminClient() : null;
+
+      if (shouldAutoSave && supabase && parsed.confidenceScore >= 20) {
         const fields = parsed.extractedFields;
         propertyCode = `NP-${Math.floor(1000 + Math.random() * 9000)}`;
         const now = new Date().toISOString();
@@ -97,7 +84,7 @@ export default async function handler(req: any, res: any) {
           facing: fields.facing || 'East',
           furnishing: fields.furnishing || 'Semi-Furnished',
           status: 'available',
-          is_verified: true,
+          is_verified: false, // auto-read from a message; staff verify it in the CRM
           legal_status: fields.legalStatus || {
             nmrdaApproved: true,
             rlAvailable: true,
@@ -172,8 +159,8 @@ export default async function handler(req: any, res: any) {
             }
           : {}),
       });
-    } catch (err: any) {
-      return res.status(500).json({ success: false, error: err.message || 'Parser error' });
+    } catch (err) {
+      return sendError(res, err, 'api/whatsapp/parse');
     }
   }
 

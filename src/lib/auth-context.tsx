@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabaseDb, supabaseAuth, isSupabaseConfigured } from './supabase';
+import { EMPLOYEE_ROLES } from './public-config';
 import type { CrmUserProfile } from '../types/crm';
 
 export interface AuthState {
@@ -7,37 +8,9 @@ export interface AuthState {
   profiles: CrmUserProfile[];
   isLoading: boolean;
   isLiveSupabase: boolean;
-  isDemoMode: boolean;
   signInWithPassword: (identifier: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  enterDemoMode: () => void;
   signOut: () => Promise<void>;
 }
-
-const DEFAULT_ADMIN_USER: CrmUserProfile = {
-  id: 'dbc71212-d38b-40cc-8df2-4a99828ff449',
-  fullName: 'SaraswatiNagri (Office)',
-  email: 'saraswatinagri@gmail.com',
-  phone: '8956040220',
-  role: 'Super Admin',
-  avatar: 'SN',
-  color: 'from-rose-500 to-amber-500',
-  isActive: true,
-  department: 'Management',
-};
-
-// Recognized company employee roles from Saraswati Nagri CRM profiles
-const EMPLOYEE_ROLES = new Set([
-  'super admin',
-  'director',
-  'team lead',
-  'sales agent',
-  'operational manager',
-  'staff',
-  'admin',
-  'accounts & finance',
-  'intern',
-  'driver'
-]);
 
 const AuthContext = createContext<AuthState | null>(null);
 
@@ -45,10 +18,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<CrmUserProfile | null>(null);
   const [profiles, setProfiles] = useState<CrmUserProfile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isDemoMode, setIsDemoMode] = useState(false);
 
   const loadProfileAndRoster = useCallback(async (userId: string, emailFallback?: string) => {
-    if (!supabaseDb) return;
+    if (!supabaseDb) return false;
 
     try {
       const [{ data: myProfile }, { data: roster }] = await Promise.all([
@@ -80,30 +52,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
       };
 
-      let activeUser: CrmUserProfile;
-      if (myProfile) {
-        activeUser = mapRow(myProfile as Record<string, unknown>);
-      } else {
-        activeUser = {
-          id: userId,
-          fullName: emailFallback?.split('@')[0] || 'CRM Executive',
-          email: emailFallback || '',
-          phone: '',
-          role: 'Sales Executive',
-          avatar: (emailFallback || 'U').charAt(0).toUpperCase(),
-          color: 'from-rose-500 to-amber-500',
-          isActive: true,
-        };
+      // No profile, inactive, or not a staff role = not allowed in. The server
+      // enforces the same rule on every request; this just keeps the UI honest.
+      const activeUser = myProfile ? mapRow(myProfile as Record<string, unknown>) : null;
+      if (!activeUser || !activeUser.isActive || !EMPLOYEE_ROLES.includes(activeUser.role.trim().toLowerCase())) {
+        setUser(null);
+        setProfiles([]);
+        await supabaseAuth?.auth.signOut().catch(() => {});
+        return false;
       }
 
       setUser(activeUser);
-      window.localStorage.setItem('omcrm_user_session', JSON.stringify(activeUser));
 
       if (Array.isArray(roster)) {
         setProfiles(roster.map((r) => mapRow(r as Record<string, unknown>)));
       }
+      return true;
     } catch (e) {
       console.warn('Profile/roster fetch warning:', e);
+      setUser(null);
+      return false;
     }
   }, []);
 
@@ -112,35 +80,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     async function init() {
       if (!isSupabaseConfigured || !supabaseAuth) {
-        if (mounted) {
-          setIsDemoMode(true);
-          setUser(DEFAULT_ADMIN_USER);
-          setIsLoading(false);
-        }
+        if (mounted) setIsLoading(false);
         return;
       }
 
+      // Left over from the old build, which trusted this value as a login.
+      window.localStorage.removeItem('omcrm_user_session');
+      window.localStorage.removeItem('resale_desk_demo_mode');
+
       try {
-        // 1. Check Supabase auth session
         const { data: { session } } = await supabaseAuth.auth.getSession();
         if (session?.user && mounted) {
           await loadProfileAndRoster(session.user.id, session.user.email);
-          setIsDemoMode(false);
-          return;
-        }
-
-        // 2. Check saved session in localStorage
-        const savedSession = window.localStorage.getItem('omcrm_user_session');
-        if (savedSession && mounted) {
-          try {
-            const parsed = JSON.parse(savedSession);
-            if (parsed && parsed.id) {
-              setUser(parsed);
-              setIsDemoMode(false);
-              await loadProfileAndRoster(parsed.id, parsed.email);
-              return;
-            }
-          } catch {}
         }
       } catch (err) {
         console.error('Supabase session init failed:', err);
@@ -152,14 +103,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     init();
 
     if (supabaseAuth) {
-      const { data: { subscription } } = supabaseAuth.auth.onAuthStateChange(async (_event, session) => {
+      const { data: { subscription } } = supabaseAuth.auth.onAuthStateChange((_event, session) => {
         if (!mounted) return;
         if (session?.user) {
-          window.localStorage.removeItem('resale_desk_demo_mode');
-          setIsDemoMode(false);
-          await loadProfileAndRoster(session.user.id, session.user.email);
-        } else if (!window.localStorage.getItem('omcrm_user_session')) {
+          // Deferred: awaiting Supabase calls inside this callback deadlocks the auth client.
+          const { id, email } = session.user;
+          setTimeout(() => {
+            if (mounted) void loadProfileAndRoster(id, email);
+          }, 0);
+        } else {
           setUser(null);
+          setProfiles([]);
         }
       });
 
@@ -175,111 +129,42 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [loadProfileAndRoster]);
 
   const signInWithPassword = async (identifier: string, password: string) => {
-    if (!supabaseAuth || !supabaseDb) return { success: false, error: 'Database client not initialized' };
+    if (!supabaseAuth) return { success: false, error: 'Database client not initialized' };
 
-    const trimmed = identifier.trim().toLowerCase();
-    const rawDigits = trimmed.replace(/\D/g, '');
-    const isPhone =
-      rawDigits.length === 10 ||
-      (rawDigits.length === 12 && rawDigits.startsWith('91')) ||
-      (rawDigits.length === 11 && rawDigits.startsWith('0'));
-    const phone10 = isPhone ? rawDigits.slice(-10) : '';
-
-    const isMasterLogin =
-      (trimmed === 'saraswatinagri@gmail.com' || phone10 === '8956040220' || trimmed === 'saraswatinagri') &&
-      password === 'SaraswatiNagri123#';
-
-    // 1. Strict Employee Verification against public.profiles
-    let matchedProfile: any = null;
     try {
-      let query = supabaseDb.from('profiles').select('id, email, phone, full_name, role, is_active, department');
-      if (isPhone) {
-        query = query.or(`phone.ilike.%${phone10}%,email.ilike.%${phone10}%`);
-      } else {
-        query = query.eq('email', trimmed);
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifier: identifier.trim(), password }),
+      });
+      const payload = await res.json().catch(() => null);
+      if (!res.ok || !payload?.access_token || !payload?.refresh_token) {
+        return { success: false, error: payload?.error || 'Login failed. Please try again.' };
       }
-      const { data: matched } = await query.maybeSingle();
-      matchedProfile = matched;
-    } catch (e) {
-      console.warn('Employee verification lookup warning:', e);
-    }
 
-    // If master admin credentials used, allow access
-    if (isMasterLogin) {
-      setUser(DEFAULT_ADMIN_USER);
-      setIsDemoMode(false);
-      window.localStorage.setItem('omcrm_user_session', JSON.stringify(DEFAULT_ADMIN_USER));
-      await loadProfileAndRoster(DEFAULT_ADMIN_USER.id, DEFAULT_ADMIN_USER.email);
-      return { success: true };
-    }
-
-    // 2. Enforce: ONLY verified Saraswati Nagri company employees can login
-    if (!matchedProfile) {
-      return {
-        success: false,
-        error: 'Access restricted: Only verified Saraswati Nagri company employees can access Resale Desk CRM.'
-      };
-    }
-
-    if (matchedProfile.is_active === false) {
-      return {
-        success: false,
-        error: 'Employee account is inactive. Please contact Saraswati Nagri office administration.'
-      };
-    }
-
-    const roleName = String(matchedProfile.role || '').toLowerCase();
-    if (!EMPLOYEE_ROLES.has(roleName)) {
-      return {
-        success: false,
-        error: `Access restricted: Role "${matchedProfile.role}" cannot access internal Resale Desk CRM. Only company staff & sales executives are authorized.`
-      };
-    }
-
-    const authEmail = matchedProfile.email || trimmed;
-
-    // Direct Supabase sign in via auth client
-    let { data, error } = await supabaseAuth.auth.signInWithPassword({
-      email: authEmail,
-      password,
-    });
-
-    // If initial attempt failed and was phone, retry with +91 phone credential
-    if (error && isPhone) {
-      const phoneAttempt = await supabaseAuth.auth.signInWithPassword({
-        phone: `+91${phone10}`,
-        password,
-      } as any);
-      if (!phoneAttempt.error && phoneAttempt.data) {
-        data = phoneAttempt.data;
-        error = null;
+      const { data, error } = await supabaseAuth.auth.setSession({
+        access_token: payload.access_token,
+        refresh_token: payload.refresh_token,
+      });
+      if (error || !data.user) {
+        return { success: false, error: error?.message || 'Login failed. Please try again.' };
       }
+
+      const allowed = await loadProfileAndRoster(data.user.id, data.user.email);
+      return allowed
+        ? { success: true }
+        : { success: false, error: 'This account cannot use the Resale Desk.' };
+    } catch {
+      return { success: false, error: 'Could not reach the server. Check your connection and try again.' };
     }
-
-    if (error || !data?.user) {
-      return { success: false, error: error?.message || 'Invalid password for employee account.' };
-    }
-
-    setIsDemoMode(false);
-    window.localStorage.removeItem('resale_desk_demo_mode');
-    await loadProfileAndRoster(data.user.id, data.user.email);
-    return { success: true };
-  };
-
-  const enterDemoMode = () => {
-    setIsDemoMode(false);
-    setUser(DEFAULT_ADMIN_USER);
-    window.localStorage.setItem('omcrm_user_session', JSON.stringify(DEFAULT_ADMIN_USER));
   };
 
   const signOut = async () => {
-    window.localStorage.removeItem('resale_desk_demo_mode');
-    window.localStorage.removeItem('omcrm_user_session');
-    setIsDemoMode(false);
     if (supabaseAuth) {
       await supabaseAuth.auth.signOut().catch(() => {});
     }
     setUser(null);
+    setProfiles([]);
   };
 
   return (
@@ -289,9 +174,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         profiles,
         isLoading,
         isLiveSupabase: Boolean(isSupabaseConfigured && supabaseDb),
-        isDemoMode,
         signInWithPassword,
-        enterDemoMode,
         signOut,
       }}
     >

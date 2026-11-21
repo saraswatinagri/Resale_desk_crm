@@ -1,30 +1,12 @@
-import { createClient } from '@supabase/supabase-js';
+import { PUBLIC_PROPERTY_COLUMNS, safeSearchTerm, toPublicProperty } from '../_lib/public-property';
+import { clip, getAdminClient, sendError, setPublicCors } from '../_lib/server';
 
-const supabaseUrl =
-  process.env.VITE_SUPABASE_URL ||
-  process.env.NEXT_PUBLIC_SUPABASE_URL ||
-  'https://bdrmbhbzlbudpfvqdjga.supabase.co';
-
-const supabaseKey =
-  process.env.VITE_SUPABASE_SERVICE_ROLE_KEY ||
-  process.env.SUPABASE_SERVICE_ROLE_KEY ||
-  process.env.VITE_SUPABASE_ANON_KEY ||
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJkcm1iaGJ6bGJ1ZHBmdnFkamdhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4NDk5MDQsImV4cCI6MjA5MDQyNTkwNH0.o9n1G_21xuYofTY2g0HqoGWU1tUAvyJ6bLCwoJH0pOY';
-
-const supabase = createClient(supabaseUrl, supabaseKey);
-
-function setCorsHeaders(res: any) {
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-  res.setHeader(
-    'Access-Control-Allow-Headers',
-    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, x-api-key, Authorization'
-  );
-}
+// PUBLIC endpoints used by the website:
+//   GET  — property feed (owner details are never included)
+//   POST — "list my property" form (saved as UNVERIFIED until staff check it)
 
 export default async function handler(req: any, res: any) {
-  setCorsHeaders(res);
+  setPublicCors(res, 'GET,OPTIONS,POST');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
@@ -45,9 +27,13 @@ export default async function handler(req: any, res: any) {
         search,
       } = req.query;
 
+      const supabase = getAdminClient();
+      const term = safeSearchTerm(search);
+      const place = safeSearchTerm(locality);
+
       let query = supabase
         .from('resale_properties')
-        .select('*', { count: 'exact' })
+        .select(PUBLIC_PROPERTY_COLUMNS, { count: 'exact' })
         .order('created_at', { ascending: false });
 
       if (status && status !== 'all') {
@@ -56,8 +42,8 @@ export default async function handler(req: any, res: any) {
       if (category && category !== 'all') {
         query = query.eq('category', category);
       }
-      if (locality && locality !== 'all') {
-        query = query.ilike('locality', `%${locality}%`);
+      if (place && place !== 'all') {
+        query = query.ilike('locality', `%${place}%`);
       }
       if (bhk && bhk !== 'all') {
         query = query.eq('bhk', bhk);
@@ -68,8 +54,8 @@ export default async function handler(req: any, res: any) {
       if (maxPrice) {
         query = query.lte('price_numeric', Number(maxPrice));
       }
-      if (search) {
-        query = query.or(`title.ilike.%${search}%,locality.ilike.%${search}%,address.ilike.%${search}%`);
+      if (term) {
+        query = query.or(`title.ilike.%${term}%,locality.ilike.%${term}%,address.ilike.%${term}%`);
       }
 
       const numLimit = Math.min(100, Math.max(1, parseInt(String(limit), 10) || 50));
@@ -78,53 +64,52 @@ export default async function handler(req: any, res: any) {
 
       const { data, count, error } = await query;
 
-      if (error) {
-        // If table is missing or empty, return verified sample payload
-        return res.status(200).json({
-          success: true,
-          notice: error.message,
-          source: 'catalog_fallback',
-          count: 0,
-          total: 0,
-          data: [],
-        });
-      }
+      if (error) throw error;
 
+      const rows = ((data || []) as unknown as Array<Record<string, unknown>>).map(toPublicProperty);
       return res.status(200).json({
         success: true,
-        count: (data || []).length,
-        total: count || (data || []).length,
-        data: data || [],
+        count: rows.length,
+        total: count || rows.length,
+        data: rows,
       });
-    } catch (err: any) {
-      return res.status(500).json({ success: false, error: err.message || 'Error fetching properties' });
+    } catch (err) {
+      return sendError(res, err, 'api/properties GET');
     }
   }
 
   // ── POST: Submit New Property (From Website Form or WhatsApp Ingest) ─────
   if (req.method === 'POST') {
     try {
+      const supabase = getAdminClient();
       const body = req.body || {};
-      const {
-        title,
-        category = 'plot',
-        transactionType = 'resale',
-        locality = 'Besa',
-        corridor = 'South Nagpur',
-        address = '',
-        areaSqFt = 1000,
-        priceNumeric = 0,
-        price = '',
-        bhk,
-        facing = 'East',
-        furnishing = 'Semi-Furnished',
-        ownerName = 'Property Owner',
-        ownerPhone = '',
-        description = '',
-        images = [],
-        legalStatus = {},
-        source = 'Website Submission',
-      } = body;
+      const title = clip(body.title, 160);
+      const category = clip(body.category, 30) || 'plot';
+      const transactionType = body.transactionType === 'rent' ? 'rent' : 'resale';
+      const locality = clip(body.locality, 80) || 'Besa';
+      const corridor = clip(body.corridor, 80) || 'South Nagpur';
+      const address = clip(body.address, 300);
+      const areaSqFt = Number(body.areaSqFt) || 0;
+      const priceNumeric = Number(body.priceNumeric) || 0;
+      const price = clip(body.price, 60);
+      const bhk = clip(body.bhk, 20);
+      const facing = clip(body.facing, 20) || 'East';
+      const furnishing = clip(body.furnishing, 30) || 'Semi-Furnished';
+      const ownerName = clip(body.ownerName, 120) || 'Property Owner';
+      const ownerPhone = clip(body.ownerPhone, 20);
+      const description = clip(body.description, 2000);
+      const images = Array.isArray(body.images)
+        ? body.images.filter((u: unknown) => typeof u === 'string' && /^https:\/\//.test(u)).slice(0, 12)
+        : [];
+      const source = clip(body.source, 60) || 'Website Submission';
+      const shortList = (v: unknown): string[] =>
+        Array.isArray(v) ? v.filter((x) => typeof x === 'string').map((x) => clip(x, 60)).slice(0, 20) : [];
+      const amenities = shortList(body.amenities);
+      const highlights = shortList(body.highlights);
+      const legalStatus =
+        body.legalStatus && typeof body.legalStatus === 'object' && !Array.isArray(body.legalStatus)
+          ? body.legalStatus
+          : {};
 
       if (!title || (!ownerPhone && !body.phone)) {
         return res.status(400).json({
@@ -152,14 +137,14 @@ export default async function handler(req: any, res: any) {
         facing,
         furnishing,
         status: 'available',
-        is_verified: true,
-        legal_status: legalStatus,
-        amenities: body.amenities || ['Tar Road', 'Water Line', 'Street Light'],
-        highlights: body.highlights || ['Verified Resale Listing', `${locality} Prime Location`],
+        is_verified: false, // submitted by the public; staff verify it in the CRM
+        legal_status: legalStatus, // the owner's own claims — unverified
+        amenities,
+        highlights,
         images: Array.isArray(images) && images.length > 0 ? images : [
           'https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=1000&q=80'
         ],
-        description: description || `Verified resale property in ${locality}, Nagpur.`,
+        description: description || `Resale property in ${locality}, Nagpur.`,
         owner: {
           name: ownerName,
           phone: cleanPhone ? `+91 ${cleanPhone}` : '',
@@ -176,10 +161,11 @@ export default async function handler(req: any, res: any) {
         .select('*')
         .maybeSingle();
 
+      if (propError) throw propError;
+
       // 2. Also create an owner/seller lead in public.leads so agents see it in Resale Desk!
       let leadId: string | null = null;
       if (cleanPhone) {
-        const leadCode = `L-${Math.floor(10000 + Math.random() * 90000)}`;
         const { data: newLead } = await supabase
           .from('leads')
           .insert({
@@ -207,14 +193,12 @@ export default async function handler(req: any, res: any) {
 
       return res.status(201).json({
         success: true,
-        message: 'Property successfully submitted & registered with Nagpur Properties Resale Desk',
+        message: 'Property submitted. Our Resale Desk will verify it and contact you.',
         propertyCode,
-        property: createdProp || propertyPayload,
-        associatedLeadId: leadId,
+        property: createdProp ? toPublicProperty(createdProp as Record<string, unknown>) : null,
       });
-    } catch (err: any) {
-      console.error('POST /api/properties error:', err);
-      return res.status(500).json({ success: false, error: err.message || 'Failed to submit property' });
+    } catch (err) {
+      return sendError(res, err, 'api/properties POST');
     }
   }
 

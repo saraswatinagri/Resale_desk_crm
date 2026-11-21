@@ -1,34 +1,20 @@
-import { createClient } from '@supabase/supabase-js';
+import { getAdminClient, safeEqual } from '../_lib/server';
 import { parseWhatsAppPropertyMessage } from '../../src/utils/whatsappPropertyParser';
 
-const supabaseUrl =
-  process.env.VITE_SUPABASE_URL ||
-  process.env.NEXT_PUBLIC_SUPABASE_URL ||
-  'https://bdrmbhbzlbudpfvqdjga.supabase.co';
-const supabaseKey =
-  process.env.VITE_SUPABASE_SERVICE_ROLE_KEY ||
-  process.env.SUPABASE_SERVICE_ROLE_KEY ||
-  process.env.VITE_SUPABASE_ANON_KEY ||
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJkcm1iaGJ6bGJ1ZHBmdnFkamdhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4NDk5MDQsImV4cCI6MjA5MDQyNTkwNH0.o9n1G_21xuYofTY2g0HqoGWU1tUAvyJ6bLCwoJH0pOY';
+const EVOLUTION_API_URL = (process.env.EVOLUTION_API_URL || '').replace(/\/+$/, '');
+const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY || '';
 
-const supabase = createClient(supabaseUrl, supabaseKey);
-
-const EVOLUTION_API_URL = (
-  process.env.EVOLUTION_API_URL ||
-  process.env.VITE_EVOLUTION_API_URL ||
-  ''
-).replace(/\/+$/, '');
-const EVOLUTION_API_KEY =
-  process.env.EVOLUTION_API_KEY || process.env.VITE_EVOLUTION_API_KEY || '';
-
-function setCorsHeaders(res: any) {
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-  res.setHeader(
-    'Access-Control-Allow-Headers',
-    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, x-api-key, Authorization'
-  );
+/**
+ * Only the WhatsApp gateway may post here. It proves itself with the shared
+ * secret EVOLUTION_WEBHOOK_TOKEN, sent as ?token=... on the webhook URL or as
+ * an x-webhook-token header. No secret configured = nothing is accepted.
+ */
+function isFromGateway(req: any): boolean {
+  const expected = (process.env.EVOLUTION_WEBHOOK_TOKEN || '').trim();
+  if (expected.length < 16) return false;
+  const fromQuery = typeof req.query?.token === 'string' ? req.query.token : '';
+  const fromHeader = String(req.headers?.['x-webhook-token'] || '');
+  return safeEqual(fromQuery, expected) || safeEqual(fromHeader, expected);
 }
 
 // Unwraps nested Evolution / WhatsApp Web payloads defensively
@@ -101,24 +87,23 @@ async function sendWhatsAppReply(instanceName: string, recipientNumber: string, 
 }
 
 export default async function handler(req: any, res: any) {
-  setCorsHeaders(res);
-
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-
   if (req.method === 'GET') {
-    // Health check / webhook handshake
-    return res.status(200).json({
-      status: 'active',
-      service: 'Nagpur Properties & Saraswati Nagri Resale WhatsApp Webhook',
-      provider: 'evolution',
-      connectedAt: new Date().toISOString(),
-    });
+    return res.status(200).json({ status: 'active' });
   }
 
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  if (!isFromGateway(req)) {
+    return res.status(401).json({ ok: false, error: 'Unauthorized' });
+  }
+
+  let supabase: ReturnType<typeof getAdminClient>;
+  try {
+    supabase = getAdminClient();
+  } catch {
+    return res.status(503).json({ ok: false, error: 'Server is not configured' });
   }
 
   try {
@@ -269,7 +254,7 @@ export default async function handler(req: any, res: any) {
             facing: fields.facing || 'East',
             furnishing: fields.furnishing || 'Semi-Furnished',
             status: 'available',
-            is_verified: true,
+            is_verified: false, // auto-read from a WhatsApp message; staff verify it in the CRM
             legal_status: fields.legalStatus || {
               nmrdaApproved: true,
               rlAvailable: true,
@@ -279,7 +264,7 @@ export default async function handler(req: any, res: any) {
               eligibleBanks: ['State Bank of India', 'HDFC Bank'],
             },
             amenities: ['Tar Road', 'Water Line', 'Street Light', '24x7 Security'],
-            highlights: ['Verified Resale Listing', `${fields.locality || 'Nagpur'} Prime Growth Corridor`],
+            highlights: [`${fields.locality || 'Nagpur'} Prime Growth Corridor`],
             images: [
               'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1000&q=80',
             ],
@@ -417,6 +402,6 @@ export default async function handler(req: any, res: any) {
   } catch (err: any) {
     console.error('Webhook processing exception:', err);
     // Always return 200 so WhatsApp gateway doesn't get stuck in retry loops
-    return res.status(200).json({ ok: false, error: err.message || 'Webhook processing exception' });
+    return res.status(200).json({ ok: false, error: 'Webhook processing exception' });
   }
 }

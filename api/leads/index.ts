@@ -1,30 +1,13 @@
-import { createClient } from '@supabase/supabase-js';
+import { RESALE_PROPERTY_TYPES } from '../../src/lib/resale';
+import { clip, getAdminClient, sendError, setPublicCors } from '../_lib/server';
 
-const supabaseUrl =
-  process.env.VITE_SUPABASE_URL ||
-  process.env.NEXT_PUBLIC_SUPABASE_URL ||
-  'https://bdrmbhbzlbudpfvqdjga.supabase.co';
+// PUBLIC endpoint: the website enquiry form posts here, so there is no login.
+// It can only ADD an enquiry. It never returns anything about existing leads.
 
-const supabaseKey =
-  process.env.VITE_SUPABASE_SERVICE_ROLE_KEY ||
-  process.env.SUPABASE_SERVICE_ROLE_KEY ||
-  process.env.VITE_SUPABASE_ANON_KEY ||
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJkcm1iaGJ6bGJ1ZHBmdnFkamdhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4NDk5MDQsImV4cCI6MjA5MDQyNTkwNH0.o9n1G_21xuYofTY2g0HqoGWU1tUAvyJ6bLCwoJH0pOY';
-
-const supabase = createClient(supabaseUrl, supabaseKey);
-
-function setCorsHeaders(res: any) {
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,POST');
-  res.setHeader(
-    'Access-Control-Allow-Headers',
-    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, x-api-key, Authorization'
-  );
-}
+const THANK_YOU = 'Thank you! Your enquiry has been received. Our team will contact you shortly.';
 
 export default async function handler(req: any, res: any) {
-  setCorsHeaders(res);
+  setPublicCors(res, 'GET,OPTIONS,POST');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
@@ -33,21 +16,21 @@ export default async function handler(req: any, res: any) {
   // ── POST: Website Enquiry Submission ─────────────────────────────────────
   if (req.method === 'POST') {
     try {
+      const supabase = getAdminClient();
       const body = req.body || {};
-      const {
-        name,
-        phone,
-        email,
-        propertyId,
-        propertyName,
-        locality,
-        budget,
-        budgetMin,
-        budgetMax,
-        message,
-        source = 'Website',
-        intent = 'Wants to Buy a Property (Resale)',
-      } = body;
+      const name = clip(body.name, 120);
+      const phone = clip(body.phone, 20);
+      const email = clip(body.email, 160);
+      const propertyName = clip(body.propertyName, 160);
+      const locality = clip(body.locality, 120);
+      const message = clip(body.message, 1000);
+      const budgetMin = Number(body.budgetMin) || 0;
+      const budgetMax = Number(body.budgetMax) || 0;
+      const source = clip(body.source, 60) || 'Website';
+      // Only the known resale intents; anything else falls back to "wants to buy".
+      const intent = (RESALE_PROPERTY_TYPES as readonly string[]).includes(body.intent)
+        ? String(body.intent)
+        : 'Wants to Buy a Property (Resale)';
 
       if (!name || !phone) {
         return res.status(400).json({
@@ -92,12 +75,7 @@ export default async function handler(req: any, res: any) {
           })
           .eq('id', existing.id);
 
-        return res.status(200).json({
-          success: true,
-          message: 'Enquiry received. Our sales executive will contact you shortly.',
-          leadId: existing.id,
-          isExisting: true,
-        });
+        return res.status(200).json({ success: true, message: THANK_YOU });
       }
 
       // Create new lead in public.leads
@@ -110,8 +88,8 @@ export default async function handler(req: any, res: any) {
         property_type: intent,
         plot_interest: propertyName || locality || 'Resale Property',
         location_preference: locality || 'Nagpur',
-        budget_min: Number(budgetMin || 0),
-        budget_max: Number(budgetMax || 0),
+        budget_min: budgetMin,
+        budget_max: budgetMax,
         status: 'New Inquiry',
         notes: message ? `Website Message: ${message}${propertyName ? ` | Property: ${propertyName}` : ''}` : `Website Enquiry for ${propertyName || locality || 'Resale'}`,
         created_at: now,
@@ -124,10 +102,7 @@ export default async function handler(req: any, res: any) {
         .select('id, name, phone, status')
         .single();
 
-      if (error) {
-        console.error('Lead insert error:', error);
-        return res.status(500).json({ success: false, error: error.message });
-      }
+      if (error) throw error;
 
       // Record first interaction
       if (newLead?.id) {
@@ -140,14 +115,9 @@ export default async function handler(req: any, res: any) {
         });
       }
 
-      return res.status(201).json({
-        success: true,
-        message: 'Thank you! Your enquiry has been registered with Saraswati Nagri & Nagpur Properties CRM.',
-        leadId: newLead?.id,
-      });
-    } catch (err: any) {
-      console.error('API /api/leads error:', err);
-      return res.status(500).json({ success: false, error: err.message || 'Internal error' });
+      return res.status(200).json({ success: true, message: THANK_YOU });
+    } catch (err) {
+      return sendError(res, err, 'api/leads');
     }
   }
 

@@ -70,27 +70,12 @@ CREATE TRIGGER trg_resale_properties_updated_at
 
 ALTER TABLE public.resale_properties ENABLE ROW LEVEL SECURITY;
 
--- Allow all authenticated users (agents, admins, sales managers) full access
+-- No policies on purpose. With row-level security ON and no policy, the anon
+-- and authenticated keys can do NOTHING to this table. The CRM reaches it only
+-- through its own server (/api/db), which checks the employee's login first.
 DROP POLICY IF EXISTS resale_properties_all_auth ON public.resale_properties;
-CREATE POLICY resale_properties_all_auth ON public.resale_properties
-  FOR ALL TO authenticated
-  USING (true)
-  WITH CHECK (true);
-
--- Allow anon read/insert fallback for sales desk client
 DROP POLICY IF EXISTS resale_properties_anon_read ON public.resale_properties;
-CREATE POLICY resale_properties_anon_read ON public.resale_properties
-  FOR SELECT TO anon
-  USING (true);
-
 DROP POLICY IF EXISTS resale_properties_anon_insert ON public.resale_properties;
-CREATE POLICY resale_properties_anon_insert ON public.resale_properties
-  FOR INSERT TO anon
-  WITH CHECK (true);
-
 DROP POLICY IF EXISTS resale_properties_anon_update ON public.resale_properties;
-CREATE POLICY resale_properties_anon_update ON public.resale_properties
-  FOR UPDATE TO anon
-  USING (true);
 
 NOTIFY pgrst, 'reload schema';

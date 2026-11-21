@@ -54,21 +54,12 @@ CREATE TABLE IF NOT EXISTS public.resale_properties (
 
 ALTER TABLE public.resale_properties ENABLE ROW LEVEL SECURITY;
 
+-- No policies on purpose: with RLS on and no policy, the public keys can do
+-- nothing here. The CRM reads and writes through its own server (/api/db).
 DROP POLICY IF EXISTS resale_properties_select ON public.resale_properties;
-CREATE POLICY resale_properties_select ON public.resale_properties FOR SELECT
-  USING (EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.is_active = true));
-
 DROP POLICY IF EXISTS resale_properties_insert ON public.resale_properties;
-CREATE POLICY resale_properties_insert ON public.resale_properties FOR INSERT
-  WITH CHECK (EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.is_active = true));
-
 DROP POLICY IF EXISTS resale_properties_update ON public.resale_properties;
-CREATE POLICY resale_properties_update ON public.resale_properties FOR UPDATE
-  USING (EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.is_active = true));
-
 DROP POLICY IF EXISTS resale_properties_delete ON public.resale_properties;
-CREATE POLICY resale_properties_delete ON public.resale_properties FOR DELETE
-  USING (EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.role IN ('Super Admin', 'Admin', 'Sales Manager', 'Operational Manager')));
 
 NOTIFY pgrst, 'reload schema';`;
 

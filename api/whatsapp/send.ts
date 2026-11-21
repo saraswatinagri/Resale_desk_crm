@@ -1,39 +1,37 @@
-import { createClient } from '@supabase/supabase-js';
+import { HttpError, clip, getAdminClient, requireStaff, sendError } from '../_lib/server';
 
-const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://bdrmbhbzlbudpfvqdjga.supabase.co';
-const supabaseKey = process.env.VITE_SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJkcm1iaGJ6bGJ1ZHBmdnFkamdhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4NDk5MDQsImV4cCI6MjA5MDQyNTkwNH0.o9n1G_21xuYofTY2g0HqoGWU1tUAvyJ6bLCwoJH0pOY';
-
-const supabase = createClient(supabaseUrl, supabaseKey);
-
-const EVOLUTION_API_URL = (process.env.EVOLUTION_API_URL || process.env.VITE_EVOLUTION_API_URL || '').replace(/\/+$/, '');
-const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY || process.env.VITE_EVOLUTION_API_KEY || '';
+// Server-only gateway settings. Never read VITE_ variables here: those are public.
+const EVOLUTION_API_URL = (process.env.EVOLUTION_API_URL || '').replace(/\/+$/, '');
+const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY || '';
+const OFFICE_INSTANCE = 'agent_dbc71212-d38b-40cc-8df2-4a99828ff449';
+const INSTANCE_NAME = /^agent_[0-9a-f-]{36}$/i;
 
 export default async function handler(req: any, res: any) {
-  // CORS
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-  res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
-
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
+  res.setHeader('Cache-Control', 'no-store');
 
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
-    const { leadId, phone, text, instanceName, senderAgentId } = req.body || {};
+    // Only a logged-in employee may send from the company WhatsApp line.
+    const staff = await requireStaff(req);
+    const supabase = getAdminClient();
+
+    const { leadId, phone, instanceName } = req.body || {};
+    const text = clip(req.body?.text, 4000);
 
     if (!phone || !text) {
-      return res.status(400).json({ error: 'Missing phone or message text' });
+      throw new HttpError(400, 'Missing phone or message text');
     }
 
     const digits = String(phone).replace(/\D/g, '');
     const phone10 = digits.slice(-10);
+    if (phone10.length !== 10) throw new HttpError(400, 'Invalid phone number');
     const recipient = `91${phone10}`;
-    const effectiveInstance = instanceName || 'agent_dbc71212-d38b-40cc-8df2-4a99828ff449'; // Office master line
+    const effectiveInstance = instanceName ? String(instanceName) : OFFICE_INSTANCE;
+    if (!INSTANCE_NAME.test(effectiveInstance)) throw new HttpError(400, 'Invalid WhatsApp line');
+    const senderAgentId = staff.id; // from the verified login, not from the browser
 
     let realMessageId: string | null = null;
     let deliverySuccess = false;
@@ -50,7 +48,7 @@ export default async function handler(req: any, res: any) {
           },
           body: JSON.stringify({
             number: recipient,
-            text: String(text).trim(),
+            text,
           }),
         });
 
@@ -79,7 +77,7 @@ export default async function handler(req: any, res: any) {
       direction: 'outbound',
       from_number: '918956040220',
       to_number: recipient,
-      text: String(text).trim(),
+      text,
       is_group: false,
       message_timestamp: now,
       lead_id: leadId || null,
@@ -91,9 +89,9 @@ export default async function handler(req: any, res: any) {
       await supabase.from('lead_interactions').insert({
         lead_id: leadId,
         type: 'whatsapp',
-        content: String(text).trim(),
+        content: text,
         outcome: deliverySuccess ? 'whatsapp_delivered' : 'whatsapp_sent',
-        created_by: senderAgentId || null,
+        created_by: senderAgentId,
         created_at: now,
       });
 
@@ -122,8 +120,7 @@ export default async function handler(req: any, res: any) {
       gatewayError,
       waLink: `https://wa.me/${recipient}?text=${encodeURIComponent(text)}`,
     });
-  } catch (error: any) {
-    console.error('API /api/whatsapp/send error:', error);
-    return res.status(500).json({ error: error?.message || 'Internal server error' });
+  } catch (error) {
+    return sendError(res, error, 'api/whatsapp/send');
   }
 }

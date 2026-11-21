@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "npx --yes tsx --test tests/*.test.ts",
+    "typecheck:api": "tsc -p tsconfig.api.json"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.119.0",

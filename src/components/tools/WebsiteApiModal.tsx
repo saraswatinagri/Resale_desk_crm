@@ -467,6 +467,7 @@ async function submitWebsiteEnquiry(leadData) {
 `// Parse AND Auto-Register property directly into CRM database:
 curl -X POST https://resaledesk.saraswatinagri.com/api/whatsapp/parse \\
   -H "Content-Type: application/json" \\
+  -H "x-api-key: YOUR_INGEST_API_KEY" \\
   -d '{
     "message": "For sale 1500 sqft residential plot in Besa Nagpur, RL approved, 52 Lakhs. Owner 9823012345",
     "autoSave": true
@@ -484,6 +485,7 @@ curl -X POST https://resaledesk.saraswatinagri.com/api/whatsapp/parse \\
 {`// Option 1: Parse & Auto-Save property directly to CRM Database
 curl -X POST https://resaledesk.saraswatinagri.com/api/whatsapp/parse \\
   -H "Content-Type: application/json" \\
+  -H "x-api-key: YOUR_INGEST_API_KEY" \\
   -d '{
     "message": "For sale 1500 sqft residential plot in Besa Nagpur, RL approved, 52 Lakhs. Owner 9823012345",
     "autoSave": true

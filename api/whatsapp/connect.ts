@@ -1,33 +1,31 @@
-import { createClient } from '@supabase/supabase-js';
+import { HttpError, getAdminClient, requireStaff, sendError } from '../_lib/server';
 
-const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://bdrmbhbzlbudpfvqdjga.supabase.co';
-const supabaseKey = process.env.VITE_SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJkcm1iaGJ6bGJ1ZHBmdnFkamdhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4NDk5MDQsImV4cCI6MjA5MDQyNTkwNH0.o9n1G_21xuYofTY2g0HqoGWU1tUAvyJ6bLCwoJH0pOY';
-
-const supabase = createClient(supabaseUrl, supabaseKey);
-
-const EVOLUTION_API_URL = (process.env.EVOLUTION_API_URL || process.env.VITE_EVOLUTION_API_URL || '').replace(/\/+$/, '');
-const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY || process.env.VITE_EVOLUTION_API_KEY || '';
+const EVOLUTION_API_URL = (process.env.EVOLUTION_API_URL || '').replace(/\/+$/, '');
+const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY || '';
+const OFFICE_INSTANCE = 'agent_dbc71212-d38b-40cc-8df2-4a99828ff449';
+const INSTANCE_NAME = /^agent_[0-9a-f-]{36}$/i;
 
 export default async function handler(req: any, res: any) {
-  // CORS
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-  res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
-
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
+  res.setHeader('Cache-Control', 'no-store');
+  if (req.method !== 'GET' && req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { agentId, instanceName } = (req.method === 'POST' ? req.body : req.query) || {};
-  const effectiveInstance = instanceName || (agentId ? `agent_${agentId}` : 'agent_dbc71212-d38b-40cc-8df2-4a99828ff449');
-
   try {
+    // A pairing QR lets whoever scans it take over the company WhatsApp line,
+    // so only a logged-in employee may ask for one.
+    await requireStaff(req);
+    const supabase = getAdminClient();
+
+    const { agentId, instanceName } = (req.method === 'POST' ? req.body : req.query) || {};
+    const effectiveInstance = String(instanceName || (agentId ? `agent_${agentId}` : OFFICE_INSTANCE));
+    if (!INSTANCE_NAME.test(effectiveInstance)) throw new HttpError(400, 'Invalid WhatsApp line');
+
     if (!EVOLUTION_API_URL || !EVOLUTION_API_KEY) {
       // Return existing Supabase session status
       const { data: session } = await supabase
         .from('whatsapp_sessions')
-        .select('*')
+        .select('id, agent_id, instance_name, provider, phone_number, status, last_connected_at, last_seen_at')
         .eq('instance_name', effectiveInstance)
         .maybeSingle();
 
@@ -58,7 +56,7 @@ export default async function handler(req: any, res: any) {
       pairingCode: evoData?.pairingCode || null,
       state: evoData?.state || (evoRes.ok ? 'connecting' : 'disconnected'),
     });
-  } catch (err: any) {
-    return res.status(500).json({ error: err.message || 'Failed to connect instance' });
+  } catch (err) {
+    return sendError(res, err, 'api/whatsapp/connect');
   }
 }

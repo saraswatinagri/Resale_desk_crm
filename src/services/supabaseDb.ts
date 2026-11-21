@@ -302,8 +302,9 @@ export async function fetchLeadsFromSupabase(
 
   const interactionsByLead = new Map<string, Array<Record<string, unknown>>>();
   if (leadIds.length > 0) {
-    for (let i = 0; i < leadIds.length; i += 200) {
-      const chunkIds = leadIds.slice(i, i + 200);
+    // 80 ids ≈ 3 KB of URL — safely under the serverless URL limit.
+    for (let i = 0; i < leadIds.length; i += 80) {
+      const chunkIds = leadIds.slice(i, i + 80);
       const { data: intRows } = await supabase
         .from('lead_interactions')
         .select('id, lead_id, type, content, outcome, scheduled_date, scheduled_time, visit_location, created_by, created_at')
