@@ -54,16 +54,16 @@ export const Navbar: React.FC<NavbarProps> = ({
   const HeaderIcon = currentTab === 'properties' ? Building2 : PhoneCall;
 
   return (
-    <header className="sticky top-0 bg-white/90 backdrop-blur-md border-b border-slate-200 px-2.5 sm:px-4 md:px-8 py-2 md:py-3.5 flex items-center justify-between z-30 shadow-xs gap-1.5 sm:gap-3">
+    <header className="sticky top-0 bg-white/95 backdrop-blur-md border-b border-slate-200 px-2 sm:px-4 md:px-8 py-2 md:py-3.5 flex items-center justify-between z-30 shadow-xs gap-1.5 sm:gap-3 w-full max-w-full overflow-hidden">
       {/* Left: Title Cluster */}
-      <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+      <div className="flex items-center gap-1.5 sm:gap-3 min-w-0">
         <div
           className={`hidden md:flex w-9 h-9 bg-gradient-to-br ${headerIconBg} rounded-xl shadow-lg items-center justify-center shrink-0`}
         >
           <HeaderIcon className="w-4 h-4 text-white" />
         </div>
         <div className="min-w-0">
-          <h1 className="text-sm sm:text-base font-black text-slate-800 tracking-tight leading-none truncate max-w-[130px] xs:max-w-[180px] sm:max-w-none">
+          <h1 className="text-sm sm:text-base font-black text-slate-800 tracking-tight leading-none truncate max-w-[110px] xs:max-w-[170px] sm:max-w-none">
             {currentTab === 'leads' && (activeDesk === 'resale' ? 'Resale Leads' : 'Plot Sales')}
             {currentTab === 'properties' && 'Properties & Inventory'}
             {currentTab === 'dashboard' && 'Dashboard Overview'}
@@ -79,7 +79,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       </div>
 
       {/* Right: Exact Saraswati Nagri Action Pills (Fully Adaptive for Mobile) */}
-      <div className="flex items-center gap-1 sm:gap-2 shrink-0 overflow-x-auto scrollbar-hide py-0.5">
+      <div className="flex items-center gap-1 sm:gap-2 min-w-0 max-w-[calc(100vw-110px)] sm:max-w-none overflow-x-auto scrollbar-hide py-0.5">
         <button
           type="button"
           onClick={onRefreshSync}
@@ -94,7 +94,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         <button
           type="button"
           onClick={onOpenAddLead}
-          className="inline-flex items-center justify-center gap-1 sm:gap-1.5 rounded-full min-h-[32px] sm:min-h-[36px] px-2.5 sm:px-4 py-1 sm:py-1.5 font-bold text-xs bg-purple-600 hover:bg-purple-700 text-white shadow-xs transition-colors cursor-pointer shrink-0"
+          className="inline-flex items-center justify-center gap-1 sm:gap-1.5 rounded-full min-h-[30px] sm:min-h-[36px] px-2 sm:px-4 py-1 sm:py-1.5 font-bold text-xs bg-purple-600 hover:bg-purple-700 text-white shadow-xs transition-colors cursor-pointer shrink-0"
         >
           <Plus className="w-3.5 h-3.5" />
           <span className="hidden xs:inline">Add Lead</span>
@@ -105,18 +105,19 @@ export const Navbar: React.FC<NavbarProps> = ({
         <button
           type="button"
           onClick={onOpenAddProperty}
-          className="inline-flex items-center justify-center gap-1 sm:gap-1.5 rounded-full min-h-[32px] sm:min-h-[36px] px-2.5 sm:px-4 py-1 sm:py-1.5 font-bold text-xs bg-slate-900 hover:bg-slate-800 text-white shadow-xs transition-colors cursor-pointer shrink-0"
+          className="inline-flex items-center justify-center gap-1 sm:gap-1.5 rounded-full min-h-[30px] sm:min-h-[36px] px-2 sm:px-4 py-1 sm:py-1.5 font-bold text-xs bg-slate-900 hover:bg-slate-800 text-white shadow-xs transition-colors cursor-pointer shrink-0"
         >
           <Plus className="w-3.5 h-3.5" />
           <span className="hidden sm:inline">Register Property</span>
-          <span className="sm:hidden">Property</span>
+          <span className="hidden xs:inline sm:hidden">Property</span>
+          <span className="xs:hidden">Prop</span>
         </button>
 
         {/* DESK SWITCHER PILL */}
         <button
           type="button"
           onClick={onToggleDesk}
-          className={`inline-flex items-center justify-center gap-1 sm:gap-1.5 rounded-full min-h-[32px] sm:min-h-[36px] px-2.5 sm:px-3.5 py-1 sm:py-1.5 font-bold text-xs transition-all shadow-xs cursor-pointer shrink-0 ${activeDesk === 'resale'
+          className={`inline-flex items-center justify-center gap-1 sm:gap-1.5 rounded-full min-h-[30px] sm:min-h-[36px] px-2 sm:px-3.5 py-1 sm:py-1.5 font-bold text-xs transition-all shadow-xs cursor-pointer shrink-0 ${activeDesk === 'resale'
               ? 'bg-teal-600 hover:bg-teal-700 text-white border border-teal-600'
               : 'bg-purple-600 hover:bg-purple-700 text-white border border-purple-600'
             }`}

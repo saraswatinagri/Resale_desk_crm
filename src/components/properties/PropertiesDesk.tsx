@@ -110,8 +110,8 @@ export const PropertiesDesk: React.FC<PropertiesDeskProps> = ({
   return (
     <div className="space-y-5">
       {/* ── EXACT SARASWATI NAGRI SEGMENTED BAR (projects/client.tsx line 660) ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-        <div className="flex items-center gap-1 sm:gap-1.5 rounded-2xl border border-slate-200 bg-slate-100/80 p-1 sm:p-1.5 shadow-inner overflow-x-auto scrollbar-hide max-w-full shrink-0">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 w-full max-w-full">
+        <div className="flex items-center gap-1 sm:gap-1.5 rounded-2xl border border-slate-200 bg-slate-100/80 p-1 sm:p-1.5 shadow-inner overflow-x-auto scrollbar-hide w-full sm:w-auto max-w-full">
           <button
             type="button"
             onClick={() => setInventoryTab('resale')}
@@ -148,7 +148,7 @@ export const PropertiesDesk: React.FC<PropertiesDeskProps> = ({
         </div>
 
         {/* Action buttons: WhatsApp Ingestion Queue + Register Property (Full Mobile Adaptive) */}
-        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 shrink-0">
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 w-full sm:w-auto">
           {onOpenWhatsAppPropertyInbox && (
             <button
               type="button"

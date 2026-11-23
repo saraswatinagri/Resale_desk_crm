@@ -62,7 +62,7 @@ export const SiteVisitsDesk: React.FC<SiteVisitsDeskProps> = ({
     <div className="space-y-6 animate-in fade-in duration-300">
       
       {/* Tab Switcher */}
-      <div className="flex items-center gap-2 border-b border-slate-200 pb-2 overflow-x-auto scrollbar-hide -mx-1 px-1">
+      <div className="flex items-center gap-2 border-b border-slate-200 pb-2 overflow-x-auto scrollbar-hide w-full max-w-full">
         <button
           type="button"
           onClick={() => setActiveTab('scheduler')}

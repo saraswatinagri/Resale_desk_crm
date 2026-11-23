@@ -375,7 +375,7 @@ export function App() {
   }
 
   return (
-    <div className="min-h-[100dvh] bg-[#f4f7fe] text-slate-800 flex font-sans antialiased">
+    <div className="min-h-[100dvh] w-full max-w-full bg-[#f4f7fe] text-slate-800 flex flex-col md:flex-row font-sans antialiased overflow-x-hidden">
       {/* Toast Notification Alert */}
       {notification && (
         <div
@@ -414,7 +414,7 @@ export function App() {
 
       {/* Main Content Area */}
       <div
-        className={`flex-1 flex flex-col min-h-[100dvh] pb-20 md:pb-0 transition-all duration-200 ${
+        className={`flex-1 flex flex-col min-h-[100dvh] w-full min-w-0 max-w-full pb-20 md:pb-0 overflow-x-hidden transition-all duration-200 ${
           sidebarCollapsed ? 'md:ml-[72px]' : 'md:ml-64'
         }`}
       >
@@ -454,7 +454,7 @@ export function App() {
         )}
 
         {/* Page Content (With bottom padding for fixed mobile nav bar) */}
-        <main className="flex-1 min-h-0 p-2.5 sm:p-4 md:p-6 lg:p-8 max-w-[1600px] mx-auto w-full pb-24 md:pb-8">
+        <main className="flex-1 min-h-0 w-full min-w-0 max-w-full p-2.5 sm:p-4 md:p-6 lg:p-8 max-w-[1600px] mx-auto pb-24 md:pb-8 overflow-x-hidden">
           {currentTab === 'dashboard' && (
             <DashboardOverview
               properties={properties}
