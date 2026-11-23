@@ -28,6 +28,7 @@ import {
 } from '../../services/whatsappService';
 import { toast } from '../../utils/toast';
 import { parseWhatsAppPropertyMessage } from '../../utils/whatsappPropertyParser';
+import { generateGeminiRealEstateReply } from '../../services/geminiService';
 import type { ResaleProperty } from '../../types/crm';
 
 export type WaLanguage = 'Hindi' | 'Marathi' | 'English';
@@ -252,6 +253,34 @@ export const LeadWhatsAppWindow: React.FC<LeadWhatsAppWindowProps> = ({
   }, [messages.length]);
 
   const isConnected = Boolean(activeSession && activeSession.status === 'connected');
+  const [isDraftingAi, setIsDraftingAi] = useState(false);
+
+  const handleGenerateGeminiDraft = async () => {
+    setIsDraftingAi(true);
+    try {
+      const lastClientMsg = [...messages].reverse().find((m) => m.direction === 'inbound')?.text || 'Regarding property inquiry in Nagpur';
+      const res = await generateGeminiRealEstateReply({
+        message: lastClientMsg,
+        senderName: leadName,
+        senderPhone: phone,
+        leadStage: stage,
+        projectName,
+        recentHistory: messages.slice(-5).map((m) => ({
+          sender: m.direction === 'inbound' ? 'lead' : 'agent',
+          text: m.text,
+        })),
+      });
+
+      if (res?.replyText) {
+        setChatMessage(res.replyText);
+        toast.success(res.source === 'gemini_api' ? '✨ Gemini AI draft ready!' : 'AI draft generated!');
+      }
+    } catch (err: any) {
+      toast.error('AI draft error: ' + (err.message || 'Failed'));
+    } finally {
+      setIsDraftingAi(false);
+    }
+  };
 
   const handleSend = async () => {
     const textToSend = chatMessage.trim();
@@ -511,6 +540,17 @@ export const LeadWhatsAppWindow: React.FC<LeadWhatsAppWindowProps> = ({
       {/* 5. Quick Replies Chips Bar */}
       <div className="bg-[#f0f2f5] border-t border-black/5 px-2.5 py-2 shrink-0">
         <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide pb-1">
+          <button
+            type="button"
+            onClick={handleGenerateGeminiDraft}
+            disabled={isDraftingAi}
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-[11px] font-bold shrink-0 transition-all cursor-pointer shadow-2xs disabled:opacity-50"
+            title="Generate AI reply draft using Google Gemini"
+          >
+            <Sparkles className="w-3 h-3 text-purple-200" />
+            <span>{isDraftingAi ? 'Drafting...' : '✨ Gemini AI Draft'}</span>
+          </button>
+
           {properties && properties.length > 0 && (
             <button
               type="button"

@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { parseWhatsAppPropertyMessage } from '../../src/utils/whatsappPropertyParser';
+import { generateGeminiRealEstateReply } from '../../src/services/geminiService';
 
 const supabaseUrl =
   process.env.VITE_SUPABASE_URL ||
@@ -389,6 +390,52 @@ export default async function handler(req: any, res: any) {
               updated_at: now,
             })
             .eq('id', lead.id);
+        }
+
+        // E. Gemini AI 24/7 Concierge Auto-Reply for buyer inquiries & questions
+        if (!hasPropertyDetails && !isGroup && text && text.trim().length > 1) {
+          try {
+            const aiReply = await generateGeminiRealEstateReply({
+              message: text,
+              senderName: pushName || lead?.name,
+              senderPhone: phone10,
+              leadStage: lead?.status,
+              isSeller: false,
+            });
+
+            if (aiReply && aiReply.replyText) {
+              const replyId = await sendWhatsAppReply(instanceName, `91${phone10}`, aiReply.replyText);
+
+              // Archive outbound AI response
+              await supabase.from('whatsapp_messages').insert({
+                provider: 'evolution',
+                instance_name: instanceName,
+                chat_jid: remoteJid,
+                wa_message_id: replyId || `AI_${Date.now()}`,
+                direction: 'outbound',
+                from_number: '918956040220',
+                to_number: `91${phone10}`,
+                text: aiReply.replyText,
+                is_group: false,
+                message_timestamp: new Date().toISOString(),
+                lead_id: lead?.id || null,
+                created_at: new Date().toISOString(),
+              });
+
+              // Log AI reply in timeline
+              if (lead?.id) {
+                await supabase.from('lead_interactions').insert({
+                  lead_id: lead.id,
+                  type: 'whatsapp',
+                  content: aiReply.replyText,
+                  outcome: 'whatsapp_ai_reply',
+                  created_at: new Date().toISOString(),
+                });
+              }
+            }
+          } catch (aiErr) {
+            console.warn('Gemini AI auto-reply error:', aiErr);
+          }
         }
 
         processedCount++;
