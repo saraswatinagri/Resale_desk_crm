@@ -17,6 +17,8 @@ import {
   Copy,
   Download,
   Trash2,
+  Lock,
+  X,
 } from 'lucide-react';
 import { ResaleLead, LeadStage, CrmUserProfile, CallLog } from '../../types/crm';
 import { generateWhatsAppLink } from '../../utils/formatters';
@@ -29,6 +31,8 @@ import {
   isResaleIntent,
 } from '../../lib/resale';
 import { CallOutcomePromptModal } from './CallOutcomePromptModal';
+import { useAuth } from '../../lib/auth-context';
+import { canUserCallLead } from '../../lib/lead-permissions';
 
 interface LeadsDeskProps {
   leads: ResaleLead[];
@@ -142,6 +146,22 @@ export const LeadsDesk: React.FC<LeadsDeskProps> = ({
   const [viewMode, setViewMode] = useState<'cards' | 'table' | 'kanban'>('cards');
   const [showAdvancedFilters, setShowAdvancedFilters] = useState<boolean>(false);
   const [promptCallLead, setPromptCallLead] = useState<ResaleLead | null>(null);
+  const [permissionAlert, setPermissionAlert] = useState<string | null>(null);
+
+  const { user } = useAuth();
+
+  const handleCallLead = (e: React.MouseEvent, lead: ResaleLead) => {
+    e.stopPropagation();
+    const { canCall, reason } = canUserCallLead(user, lead);
+    if (!canCall) {
+      setPermissionAlert(reason || 'Call permission restricted');
+      setTimeout(() => setPermissionAlert(null), 5000);
+      return;
+    }
+    // Authorized: hand off to dialler and arm outcome prompt modal
+    window.location.href = `tel:+91${lead.phone.replace(/\D/g, '').slice(-10)}`;
+    setPromptCallLead(lead);
+  };
 
   const STAGE_CHIPS = [
     { label: 'All', value: 'All' },
@@ -736,17 +756,23 @@ export const LeadsDesk: React.FC<LeadsDeskProps> = ({
                           <MessageCircle className="w-4 h-4" />
                         </button>
 
-                        <a
-                          href={`tel:+91${lead.phone.replace(/\D/g, '').slice(-10)}`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setPromptCallLead(lead);
-                          }}
-                          title="Call & Log Outcome"
-                          className="h-9 w-9 rounded-xl bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white flex items-center justify-center transition-colors border border-blue-100"
-                        >
-                          <PhoneCall className="w-4 h-4" />
-                        </a>
+                        {(() => {
+                          const { canCall, reason } = canUserCallLead(user, lead);
+                          return (
+                            <button
+                              type="button"
+                              onClick={(e) => handleCallLead(e, lead)}
+                              title={canCall ? 'Call & Log Outcome' : reason}
+                              className={`h-9 w-9 rounded-xl flex items-center justify-center transition-all border cursor-pointer ${
+                                canCall
+                                  ? 'bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white border-blue-100 shadow-2xs'
+                                  : 'bg-slate-100 text-slate-400 border-slate-200 hover:bg-slate-200 opacity-70'
+                              }`}
+                            >
+                              {canCall ? <PhoneCall className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+                            </button>
+                          );
+                        })()}
 
                         <button
                           type="button"
@@ -847,17 +873,21 @@ export const LeadsDesk: React.FC<LeadsDeskProps> = ({
                       <td className="px-4 py-3 text-slate-600 font-semibold">{lead.assignedTo}</td>
                       <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              window.location.href = `tel:+91${lead.phone.replace(/\D/g, '').slice(-10)}`;
-                              setPromptCallLead(lead);
-                            }}
-                            className="p-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100"
-                            title="Call & Log Outcome"
-                          >
-                            <PhoneCall className="w-3.5 h-3.5" />
-                          </button>
+                          {(() => {
+                            const { canCall, reason } = canUserCallLead(user, lead);
+                            return (
+                              <button
+                                type="button"
+                                onClick={(e) => handleCallLead(e, lead)}
+                                className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                                  canCall ? 'bg-blue-50 text-blue-600 hover:bg-blue-100' : 'bg-slate-100 text-slate-400 opacity-70'
+                                }`}
+                                title={canCall ? 'Call & Log Outcome' : reason}
+                              >
+                                {canCall ? <PhoneCall className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
+                              </button>
+                            );
+                          })()}
                           <button
                             type="button"
                             onClick={() => onOpenSmartMatcherForLead(lead)}
@@ -923,6 +953,20 @@ export const LeadsDesk: React.FC<LeadsDeskProps> = ({
             </div>
           )}
         </>
+      )}
+
+      {/* Permission Restriction Toast Banner */}
+      {permissionAlert && (
+        <div className="fixed top-16 right-5 z-[95] max-w-sm px-4 py-3 rounded-2xl bg-rose-600 text-white shadow-2xl border border-rose-500 font-bold text-xs flex items-center justify-between gap-3 animate-in fade-in slide-in-from-top-2">
+          <span>{permissionAlert}</span>
+          <button
+            type="button"
+            onClick={() => setPermissionAlert(null)}
+            className="p-1 hover:bg-rose-700 rounded-lg text-rose-200 hover:text-white cursor-pointer"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
       )}
 
       {/* 1-Tap Call Outcome Prompt Modal (Exact Saraswati Nagri CRM design) */}

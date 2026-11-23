@@ -15,11 +15,14 @@ import {
   ShieldCheck,
   ChevronRight,
   Home,
-  Tag
+  Tag,
+  Lock
 } from 'lucide-react';
 import { ResaleLead, ResaleProperty } from '../../types/crm';
 import { formatIndianCurrency, generateWhatsAppLink } from '../../utils/formatters';
 import { LEAD_STAGES } from '../../data/constants';
+import { useAuth } from '../../lib/auth-context';
+import { canUserCallLead } from '../../lib/lead-permissions';
 
 interface DashboardOverviewProps {
   properties: ResaleProperty[];
@@ -40,6 +43,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
   onViewLead,
   onViewProperty
 }) => {
+  const { user } = useAuth();
   const totalProperties = properties.length;
   const availableProperties = properties.filter(p => p.status === 'available');
   const totalInventoryValue = properties.reduce((sum, p) => sum + (p.transactionType === 'resale' ? p.priceNumeric : 0), 0);
@@ -292,12 +296,27 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
                     <MessageSquare className="w-3.5 h-3.5" />
                   </a>
 
-                  <a
-                    href={`tel:${lead.phone}`}
-                    className="p-2 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 transition-colors"
-                  >
-                    <Phone className="w-3.5 h-3.5" />
-                  </a>
+                  {(() => {
+                    const { canCall, reason } = canUserCallLead(user, lead);
+                    return canCall ? (
+                      <a
+                        href={`tel:${lead.phone}`}
+                        className="p-2 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 transition-colors"
+                        title="Call lead"
+                      >
+                        <Phone className="w-3.5 h-3.5" />
+                      </a>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => alert(reason || 'Call restricted to assigned executive')}
+                        className="p-2 rounded-lg bg-slate-100 text-slate-400 border border-slate-200 transition-colors cursor-not-allowed opacity-70"
+                        title={reason}
+                      >
+                        <Lock className="w-3.5 h-3.5" />
+                      </button>
+                    );
+                  })()}
 
                   <button
                     onClick={() => onViewLead(lead)}

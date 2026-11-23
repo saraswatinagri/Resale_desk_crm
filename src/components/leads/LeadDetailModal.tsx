@@ -17,7 +17,8 @@ import {
   AlertCircle,
   Loader2,
   ExternalLink,
-  RefreshCw
+  RefreshCw,
+  Lock,
 } from 'lucide-react';
 import { ResaleLead, ResaleProperty, LeadStage, CallLog, ScheduledVisit } from '../../types/crm';
 import { 
@@ -29,6 +30,7 @@ import {
 import { getMatchingPropertiesForLead } from '../../utils/matcher';
 import { LEAD_STAGES, SALES_AGENTS } from '../../data/constants';
 import { useAuth } from '../../lib/auth-context';
+import { canUserCallLead } from '../../lib/lead-permissions';
 import { 
   fetchLeadWhatsAppMessages, 
   sendLeadWhatsAppMessage, 
@@ -67,7 +69,20 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
   onOpenWhatsAppChat,
 }) => {
   const { user, profiles } = useAuth();
+  const [callPermissionAlert, setCallPermissionAlert] = useState<string | null>(null);
+
   if (!isOpen || !lead) return null;
+
+  const { canCall, reason: callBlockedReason } = canUserCallLead(user, lead);
+
+  const handleCall = () => {
+    if (!canCall) {
+      setCallPermissionAlert(callBlockedReason || 'Call permission restricted');
+      setTimeout(() => setCallPermissionAlert(null), 5000);
+      return;
+    }
+    window.location.href = `tel:${lead.phone}`;
+  };
 
   const [activeTab, setActiveTab] = useState<'matches' | 'calls' | 'visits' | 'details' | 'whatsapp'>('matches');
 
@@ -200,13 +215,18 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
           </div>
 
           <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
-            <a
-              href={`tel:${lead.phone}`}
-              className="p-2 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 transition-colors"
-              title="Call"
+            <button
+              type="button"
+              onClick={handleCall}
+              className={`p-2 rounded-xl border transition-colors cursor-pointer ${
+                canCall
+                  ? 'bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200'
+                  : 'bg-slate-100 text-slate-400 border-slate-200 opacity-70'
+              }`}
+              title={canCall ? 'Call client' : callBlockedReason}
             >
-              <Phone className="w-4 h-4" />
-            </a>
+              {canCall ? <Phone className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+            </button>
 
             <button
               type="button"
@@ -232,6 +252,20 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
             </button>
           </div>
         </div>
+
+        {/* Call Permission Restriction Banner */}
+        {callPermissionAlert && (
+          <div className="mx-4 sm:mx-6 mt-3 p-3 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-bold flex items-center justify-between gap-2 animate-in fade-in">
+            <span>{callPermissionAlert}</span>
+            <button
+              type="button"
+              onClick={() => setCallPermissionAlert(null)}
+              className="p-1 hover:bg-rose-100 rounded-lg text-rose-500 hover:text-rose-800 cursor-pointer"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
 
         {/* Stage Prompt & Selector Strip */}
         <div className="px-3.5 sm:px-6 py-2 sm:py-2.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between flex-wrap gap-2 shrink-0">

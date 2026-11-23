@@ -10,7 +10,8 @@ import {
   MessageSquare, 
   Building2,
   CalendarCheck,
-  ClipboardCheck
+  ClipboardCheck,
+  Lock
 } from 'lucide-react';
 import { ResaleLead, ResaleProperty, ScheduledVisit } from '../../types/crm';
 import { 
@@ -19,6 +20,8 @@ import {
   buildSiteVisitWhatsAppMessage 
 } from '../../utils/formatters';
 import { VisitAuditPanel } from './VisitAuditPanel';
+import { useAuth } from '../../lib/auth-context';
+import { canUserCallLead } from '../../lib/lead-permissions';
 
 interface SiteVisitsDeskProps {
   leads: ResaleLead[];
@@ -33,6 +36,7 @@ export const SiteVisitsDesk: React.FC<SiteVisitsDeskProps> = ({
   onViewLead,
   onViewProperty
 }) => {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'scheduler' | 'audit'>('scheduler');
   const [filterStatus, setFilterStatus] = useState<string>('all');
 
@@ -214,13 +218,27 @@ export const SiteVisitsDesk: React.FC<SiteVisitsDeskProps> = ({
 
                 {/* Footer Action */}
                 <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
-                  <a
-                    href={`tel:${lead.phone}`}
-                    className="p-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-xs font-bold"
-                    title="Call Client"
-                  >
-                    <Phone className="h-3.5 w-3.5" />
-                  </a>
+                  {(() => {
+                    const { canCall, reason } = canUserCallLead(user, lead);
+                    return canCall ? (
+                      <a
+                        href={`tel:${lead.phone}`}
+                        className="p-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-xs font-bold"
+                        title="Call Client"
+                      >
+                        <Phone className="h-3.5 w-3.5" />
+                      </a>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => alert(reason || 'Call restricted to assigned executive')}
+                        className="p-1.5 rounded-lg bg-slate-100 text-slate-400 border border-slate-200 text-xs font-bold opacity-70 cursor-not-allowed"
+                        title={reason}
+                      >
+                        <Lock className="h-3.5 w-3.5" />
+                      </button>
+                    );
+                  })()}
 
                   <a
                     href={generateWhatsAppLink(

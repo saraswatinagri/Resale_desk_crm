@@ -11,7 +11,8 @@ import {
   Phone,
   MessageSquare,
   ArrowRight,
-  TrendingUp
+  TrendingUp,
+  Lock
 } from 'lucide-react';
 import { ResaleLead, ResaleProperty, MatchScore } from '../../types/crm';
 import { 
@@ -23,6 +24,8 @@ import {
   generateWhatsAppLink, 
   buildPropertyPitchMessage 
 } from '../../utils/formatters';
+import { useAuth } from '../../lib/auth-context';
+import { canUserCallLead } from '../../lib/lead-permissions';
 
 interface SmartMatcherModalProps {
   leads: ResaleLead[];
@@ -41,6 +44,7 @@ export const SmartMatcherModal: React.FC<SmartMatcherModalProps> = ({
   onViewLead,
   onViewProperty
 }) => {
+  const { user } = useAuth();
   const [matchMode, setMatchMode] = useState<'by_lead' | 'by_property'>(
     initialSelectedProperty ? 'by_property' : 'by_lead'
   );
@@ -146,13 +150,27 @@ export const SmartMatcherModal: React.FC<SmartMatcherModalProps> = ({
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <a
-                    href={`tel:${currentLead.phone}`}
-                    className="p-2 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200"
-                    title="Call"
-                  >
-                    <Phone className="h-4 w-4" />
-                  </a>
+                  {(() => {
+                    const { canCall, reason } = canUserCallLead(user, currentLead);
+                    return canCall ? (
+                      <a
+                        href={`tel:${currentLead.phone}`}
+                        className="p-2 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200"
+                        title="Call"
+                      >
+                        <Phone className="h-4 w-4" />
+                      </a>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => alert(reason || 'Call restricted to assigned executive')}
+                        className="p-2 rounded-lg bg-slate-100 text-slate-400 border border-slate-200 opacity-70 cursor-not-allowed"
+                        title={reason}
+                      >
+                        <Lock className="h-4 w-4" />
+                      </button>
+                    );
+                  })()}
 
                   <button
                     onClick={() => onViewLead(currentLead)}

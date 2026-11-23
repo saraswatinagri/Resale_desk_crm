@@ -154,8 +154,10 @@ export interface ResaleProperty {
 export type CallOutcome =
   | 'Interested'
   | 'Scheduled Visit'
+  | 'Site Visit Fixed'
   | 'Follow-up Needed'
   | 'Ringing / No Answer'
+  | 'Invalid Number'
   | 'Budget Mismatch'
   | 'Price Too High'
   | 'Already Sold'

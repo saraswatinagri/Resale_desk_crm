@@ -463,12 +463,17 @@ export async function addCallLogInSupabase(
     updates.follow_up_date = scheduledDate;
   }
 
-  if (log.outcome === 'Scheduled Visit') {
+  if (log.outcome === 'Scheduled Visit' || log.outcome === 'Site Visit Fixed') {
     updates.status = 'Site Visit Scheduled';
     updates.stage_changed_at = new Date().toISOString();
   } else if (log.outcome === 'Site Visit Done') {
     updates.status = 'Site Visit Done';
     updates.stage_changed_at = new Date().toISOString();
+  } else if (log.outcome === 'Invalid Number') {
+    updates.status = 'Not Interested';
+    updates.lost_reason = 'Invalid Number / Wrong Person';
+    updates.stage_changed_at = new Date().toISOString();
+    updates.lost_at = new Date().toISOString();
   } else if (
     [
       'Not Interested',
