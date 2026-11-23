@@ -180,7 +180,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </aside>
 
       {/* ── MOBILE BOTTOM NAVIGATION (Exact Saraswati Nagri CRM mobile bar) ── */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-md border-t border-slate-200 px-2 py-2 flex items-stretch z-40 shadow-[0_-4px_16px_rgba(0,0,0,0.05)]">
+      <nav 
+        className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200 px-1 sm:px-2 pt-1.5 pb-2 flex items-stretch z-40 shadow-[0_-4px_16px_rgba(0,0,0,0.06)]"
+        style={{ paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom, 0px))' }}
+      >
         {navItems.slice(0, 5).map((item) => {
           const Icon = item.icon;
           const isActive = currentTab === item.id;
@@ -189,15 +192,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
               key={item.id}
               type="button"
               onClick={() => onSelectTab(item.id)}
-              className={`flex flex-col items-center justify-center gap-1 min-h-[44px] py-1 px-1 rounded-xl transition-all relative flex-1 min-w-0 cursor-pointer ${
+              className={`flex flex-col items-center justify-center gap-0.5 min-h-[46px] py-1 px-1 rounded-xl transition-all relative flex-1 min-w-0 cursor-pointer ${
                 isActive ? 'text-rose-600 font-bold' : 'text-slate-400 hover:text-slate-600 font-medium'
               }`}
             >
               {isActive && (
-                <span className="absolute -top-2 left-1/2 -translate-x-1/2 w-8 h-1 bg-rose-500 rounded-b-full" />
+                <span className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-8 h-1 bg-rose-500 rounded-b-full shadow-xs" />
               )}
               <Icon className="w-5 h-5 shrink-0" />
-              <span className="text-[10px] tracking-wide truncate max-w-full">{item.label}</span>
+              <span className="text-[10px] tracking-tight truncate max-w-full leading-tight font-semibold">{item.label}</span>
             </button>
           );
         })}

@@ -216,36 +216,36 @@ export const WhatsAppPropertyInboxModal: React.FC<WhatsAppPropertyInboxModalProp
   };
 
   return (
-    <div className="fixed inset-0 z-[65] flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-4xl z-10 overflow-hidden max-h-[92vh] flex flex-col text-xs">
+    <div className="fixed inset-0 z-[65] flex items-center justify-center p-2 sm:p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl border border-slate-200 w-full max-w-4xl z-10 overflow-hidden max-h-[96vh] sm:max-h-[92vh] flex flex-col text-xs">
         
         {/* Header */}
-        <div className="p-4 sm:p-5 border-b border-slate-100 bg-gradient-to-r from-emerald-50 via-teal-50/60 to-white flex items-center justify-between gap-3 shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shadow-md shadow-emerald-600/20 shrink-0">
+        <div className="p-3.5 sm:p-5 border-b border-slate-100 bg-gradient-to-r from-emerald-50 via-teal-50/60 to-white flex items-center justify-between gap-2.5 sm:gap-3 shrink-0">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shadow-md shadow-emerald-600/20 shrink-0">
               <MessageSquare className="w-5 h-5" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-base sm:text-lg font-black text-slate-800">
-                  Direct WhatsApp Property Ingestion Desk
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-sm sm:text-lg font-black text-slate-800 truncate">
+                  Direct WhatsApp Ingestion Desk
                 </h2>
-                <span className="bg-emerald-100 text-emerald-800 text-[10px] font-black uppercase px-2 py-0.5 rounded-full border border-emerald-300">
+                <span className="bg-emerald-100 text-emerald-800 text-[9px] sm:text-[10px] font-black uppercase px-2 py-0.5 rounded-full border border-emerald-300 shrink-0">
                   Live Feed
                 </span>
               </div>
-              <p className="text-[11px] font-semibold text-slate-500">
+              <p className="text-[10px] sm:text-[11px] font-semibold text-slate-500 truncate">
                 1-Click add &amp; publish properties sent by sellers, clients, or brokers directly via WhatsApp
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             <button
               type="button"
               onClick={loadData}
               disabled={isLoading}
-              className="p-2 rounded-xl bg-white border border-slate-200 text-slate-600 hover:text-emerald-700 hover:border-emerald-300 transition-colors cursor-pointer"
+              className="p-1.5 sm:p-2 rounded-xl bg-white border border-slate-200 text-slate-600 hover:text-emerald-700 hover:border-emerald-300 transition-colors cursor-pointer"
               title="Refresh WhatsApp messages"
             >
               <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin text-emerald-600' : ''}`} />

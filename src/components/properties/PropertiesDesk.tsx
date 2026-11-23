@@ -110,18 +110,18 @@ export const PropertiesDesk: React.FC<PropertiesDeskProps> = ({
   return (
     <div className="space-y-5">
       {/* ── EXACT SARASWATI NAGRI SEGMENTED BAR (projects/client.tsx line 660) ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-        <div className="flex items-center gap-1.5 rounded-2xl border border-slate-200 bg-slate-100/80 p-1.5 shadow-inner overflow-x-auto">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+        <div className="flex items-center gap-1 sm:gap-1.5 rounded-2xl border border-slate-200 bg-slate-100/80 p-1 sm:p-1.5 shadow-inner overflow-x-auto scrollbar-hide max-w-full shrink-0">
           <button
             type="button"
             onClick={() => setInventoryTab('resale')}
-            className={`flex shrink-0 items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition-all cursor-pointer ${
+            className={`flex shrink-0 items-center gap-1.5 sm:gap-2 rounded-xl px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-bold transition-all cursor-pointer ${
               inventoryTab === 'resale' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'
             }`}
           >
             <span>Resale &amp; Rent Properties</span>
             <span
-              className={`rounded-full px-2 py-0.5 text-[11px] font-black ${
+              className={`rounded-full px-1.5 sm:px-2 py-0.5 text-[10px] sm:text-[11px] font-black ${
                 inventoryTab === 'resale' ? 'bg-amber-100 text-amber-700' : 'bg-slate-200 text-slate-500'
               }`}
             >
@@ -132,13 +132,13 @@ export const PropertiesDesk: React.FC<PropertiesDeskProps> = ({
           <button
             type="button"
             onClick={() => setInventoryTab('layouts')}
-            className={`flex shrink-0 items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition-all cursor-pointer ${
+            className={`flex shrink-0 items-center gap-1.5 sm:gap-2 rounded-xl px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-bold transition-all cursor-pointer ${
               inventoryTab === 'layouts' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'
             }`}
           >
             <span>Saraswati Nagri Layouts</span>
             <span
-              className={`rounded-full px-2 py-0.5 text-[11px] font-black ${
+              className={`rounded-full px-1.5 sm:px-2 py-0.5 text-[10px] sm:text-[11px] font-black ${
                 inventoryTab === 'layouts' ? 'bg-amber-100 text-amber-700' : 'bg-slate-200 text-slate-500'
               }`}
             >
@@ -147,13 +147,13 @@ export const PropertiesDesk: React.FC<PropertiesDeskProps> = ({
           </button>
         </div>
 
-        {/* Action buttons: WhatsApp Ingestion Queue + Register Property */}
-        <div className="flex flex-wrap items-center gap-2 shrink-0">
+        {/* Action buttons: WhatsApp Ingestion Queue + Register Property (Full Mobile Adaptive) */}
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 shrink-0">
           {onOpenWhatsAppPropertyInbox && (
             <button
               type="button"
               onClick={onOpenWhatsAppPropertyInbox}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-xs shadow-sm transition-all cursor-pointer relative"
+              className="inline-flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-xs shadow-xs transition-all cursor-pointer relative"
               title="Open Direct WhatsApp Inbound Queue - 1-click review & publish incoming properties"
             >
               <span className="relative flex h-2 w-2">
@@ -161,7 +161,8 @@ export const PropertiesDesk: React.FC<PropertiesDeskProps> = ({
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-white" />
               </span>
               <MessageSquare className="w-3.5 h-3.5 text-emerald-100" />
-              <span>WhatsApp Inbound Queue</span>
+              <span className="hidden xs:inline">WhatsApp Inbound Queue</span>
+              <span className="xs:hidden">Inbound Queue</span>
             </button>
           )}
 
@@ -169,27 +170,29 @@ export const PropertiesDesk: React.FC<PropertiesDeskProps> = ({
             <button
               type="button"
               onClick={onOpenAddFromWhatsApp}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white border border-emerald-300 hover:bg-emerald-50 text-emerald-800 font-bold text-xs shadow-2xs transition-all cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl bg-white border border-emerald-300 hover:bg-emerald-50 text-emerald-800 font-bold text-xs shadow-2xs transition-all cursor-pointer"
               title="Add property with Direct WhatsApp importer"
             >
               <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Insert via WhatsApp</span>
+              <span className="hidden xs:inline">Insert via WhatsApp</span>
+              <span className="xs:hidden">WhatsApp Import</span>
             </button>
           )}
 
           <button
             type="button"
             onClick={onOpenAddProperty}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-sm transition-all cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-xs transition-all cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
-            <span>Register Property</span>
+            <span className="hidden xs:inline">Register Property</span>
+            <span className="xs:hidden">Register</span>
           </button>
         </div>
       </div>
 
       {/* ── EXACT SARASWATI NAGRI SEARCH & FILTER BAR (projects/client.tsx line 685) ── */}
-      <div className="flex flex-col sm:flex-row gap-3 bg-slate-100/80 backdrop-blur p-2 rounded-2xl border border-slate-200 shadow-inner">
+      <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 bg-slate-100/80 backdrop-blur p-2 rounded-2xl border border-slate-200 shadow-inner">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
@@ -201,42 +204,44 @@ export const PropertiesDesk: React.FC<PropertiesDeskProps> = ({
             }
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 text-sm font-bold border-none rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white shadow-sm"
+            className="w-full pl-9 pr-4 py-2 sm:py-2.5 text-xs sm:text-sm font-bold border-none rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white shadow-xs"
           />
         </div>
 
         {inventoryTab === 'resale' && (
-          <div className="flex items-center gap-2 min-w-0">
-            <select
-              value={transactionFilter}
-              onChange={(e) => setTransactionFilter(e.target.value)}
-              className="px-3 py-2.5 bg-white border-none rounded-xl text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-amber-500 shadow-sm cursor-pointer"
-            >
-              <option value="all">Buy &amp; Rent (All)</option>
-              <option value="resale">For Sale / Resale</option>
-              <option value="rent">For Rent / Lease</option>
-            </select>
+          <div className="flex items-center gap-2 min-w-0 w-full sm:w-auto">
+            <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 flex-1 sm:flex-none min-w-0">
+              <select
+                value={transactionFilter}
+                onChange={(e) => setTransactionFilter(e.target.value)}
+                className="w-full sm:w-auto px-2.5 sm:px-3 py-2 sm:py-2.5 bg-white border-none rounded-xl text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-amber-500 shadow-xs cursor-pointer truncate"
+              >
+                <option value="all">Buy &amp; Rent (All)</option>
+                <option value="resale">For Sale / Resale</option>
+                <option value="rent">For Rent / Lease</option>
+              </select>
 
-            <select
-              value={localityFilter}
-              onChange={(e) => setLocalityFilter(e.target.value)}
-              className="px-3 py-2.5 bg-white border-none rounded-xl text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-amber-500 shadow-sm cursor-pointer"
-            >
-              <option value="all">All Nagpur Areas</option>
-              {NAGPUR_LOCALITIES.map((l) => (
-                <option key={l.name} value={l.name}>
-                  {l.name}
-                </option>
-              ))}
-            </select>
+              <select
+                value={localityFilter}
+                onChange={(e) => setLocalityFilter(e.target.value)}
+                className="w-full sm:w-auto px-2.5 sm:px-3 py-2 sm:py-2.5 bg-white border-none rounded-xl text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-amber-500 shadow-xs cursor-pointer truncate"
+              >
+                <option value="all">All Nagpur Areas</option>
+                {NAGPUR_LOCALITIES.map((l) => (
+                  <option key={l.name} value={l.name}>
+                    {l.name}
+                  </option>
+                ))}
+              </select>
+            </div>
 
             {/* View Mode Toggle (Exact from projects/client.tsx line 706) */}
             <div className="flex bg-slate-200/60 p-1 rounded-xl shrink-0">
               <button
                 type="button"
                 onClick={() => setViewMode('grid')}
-                className={`w-9 h-9 flex items-center justify-center rounded-lg transition-all cursor-pointer ${
-                  viewMode === 'grid' ? 'bg-white shadow-sm text-amber-600' : 'text-slate-500 hover:text-slate-800'
+                className={`w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-lg transition-all cursor-pointer ${
+                  viewMode === 'grid' ? 'bg-white shadow-xs text-amber-600' : 'text-slate-500 hover:text-slate-800'
                 }`}
                 title="Grid View"
               >
@@ -245,8 +250,8 @@ export const PropertiesDesk: React.FC<PropertiesDeskProps> = ({
               <button
                 type="button"
                 onClick={() => setViewMode('list')}
-                className={`w-9 h-9 flex items-center justify-center rounded-lg transition-all cursor-pointer ${
-                  viewMode === 'list' ? 'bg-white shadow-sm text-amber-600' : 'text-slate-500 hover:text-slate-800'
+                className={`w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-lg transition-all cursor-pointer ${
+                  viewMode === 'list' ? 'bg-white shadow-xs text-amber-600' : 'text-slate-500 hover:text-slate-800'
                 }`}
                 title="List View"
               >
@@ -310,7 +315,7 @@ export const PropertiesDesk: React.FC<PropertiesDeskProps> = ({
             </div>
           ) : viewMode === 'grid' ? (
             /* ── GRID CARDS (Exact projects/client.tsx card design) ── */
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               {filteredProperties.map((prop) => (
                 <div
                   key={prop.id}
@@ -319,7 +324,7 @@ export const PropertiesDesk: React.FC<PropertiesDeskProps> = ({
                   className="group bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col hover:shadow-xl hover:border-amber-300 hover:-translate-y-1 transition-all duration-300 cursor-pointer"
                 >
                   {/* Cover Image Header */}
-                  <div className="h-48 bg-amber-50 relative overflow-hidden">
+                  <div className="h-44 sm:h-48 bg-amber-50 relative overflow-hidden">
                     {prop.images[0] ? (
                       <img
                         src={prop.images[0]}
@@ -354,8 +359,8 @@ export const PropertiesDesk: React.FC<PropertiesDeskProps> = ({
                     )}
 
                     {/* Bottom Cover Title & Location */}
-                    <div className="absolute bottom-3 left-4 right-4 z-20">
-                      <h3 className="text-base font-black text-white leading-tight line-clamp-1 mb-0.5">
+                    <div className="absolute bottom-3 left-3.5 right-3.5 z-20">
+                      <h3 className="text-sm sm:text-base font-black text-white leading-tight line-clamp-1 mb-0.5">
                         {prop.title}
                       </h3>
                       <p className="text-xs font-bold text-slate-200 flex items-center gap-1">
@@ -366,9 +371,9 @@ export const PropertiesDesk: React.FC<PropertiesDeskProps> = ({
                   </div>
 
                   {/* Body */}
-                  <div className="p-5 flex-1 space-y-3">
+                  <div className="p-3.5 sm:p-5 flex-1 space-y-3">
                     <div className="flex items-baseline justify-between gap-2">
-                      <span className="text-lg font-black text-slate-900">{prop.price}</span>
+                      <span className="text-base sm:text-lg font-black text-slate-900">{prop.price}</span>
                       {prop.propertyCode && (
                         <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-600">
                           {prop.propertyCode}
@@ -382,17 +387,17 @@ export const PropertiesDesk: React.FC<PropertiesDeskProps> = ({
 
                     {/* 3-Tile Metrics (Matching Total/Sold/Vacant tiles in projects/client.tsx) */}
                     <div className="grid grid-cols-3 gap-2">
-                      <div className="bg-slate-50 rounded-xl p-2 border border-slate-100 text-center">
+                      <div className="bg-slate-50 rounded-xl p-1.5 sm:p-2 border border-slate-100 text-center">
                         <p className="text-[8px] font-black text-slate-500 uppercase">Area</p>
                         <p className="text-xs font-black text-slate-800">{prop.areaSqFt} sqft</p>
                       </div>
-                      <div className="bg-slate-50 rounded-xl p-2 border border-slate-100 text-center">
+                      <div className="bg-slate-50 rounded-xl p-1.5 sm:p-2 border border-slate-100 text-center">
                         <p className="text-[8px] font-black text-slate-500 uppercase">Config</p>
                         <p className="text-xs font-black text-emerald-700 truncate">
                           {prop.bhk || prop.category}
                         </p>
                       </div>
-                      <div className="bg-amber-50 rounded-xl p-2 border border-amber-100 text-center">
+                      <div className="bg-amber-50 rounded-xl p-1.5 sm:p-2 border border-amber-100 text-center">
                         <p className="text-[8px] font-black text-amber-800 uppercase">Facing</p>
                         <p className="text-xs font-black text-amber-700">{prop.facing || 'East'}</p>
                       </div>
@@ -420,7 +425,7 @@ export const PropertiesDesk: React.FC<PropertiesDeskProps> = ({
 
                   {/* Footer (Exact projects/client.tsx footer) */}
                   <div
-                    className="px-5 py-3 bg-slate-50 border-t border-slate-100 flex justify-between items-center group-hover:bg-amber-50/50 transition-colors"
+                    className="px-3.5 sm:px-5 py-2.5 sm:py-3 bg-slate-50 border-t border-slate-100 flex justify-between items-center group-hover:bg-amber-50/50 transition-colors"
                     onClick={(e) => e.stopPropagation()}
                   >
                     <div className="flex items-center gap-2">
@@ -581,7 +586,7 @@ export const PropertiesDesk: React.FC<PropertiesDeskProps> = ({
 
       {/* ── SARASWATI NAGRI LIVE LAYOUTS TAB (Synced from public.projects) ── */}
       {inventoryTab === 'layouts' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {filteredProjects.length === 0 ? (
             <div className="col-span-full py-16 bg-white rounded-3xl border border-slate-200 text-center">
               <Building2 className="w-12 h-12 text-slate-200 mx-auto mb-3" />

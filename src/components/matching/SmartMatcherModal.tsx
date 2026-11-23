@@ -82,10 +82,10 @@ export const SmartMatcherModal: React.FC<SmartMatcherModalProps> = ({
         </div>
 
         {/* Mode Selector */}
-        <div className="flex items-center rounded-xl bg-white border border-slate-200 p-1 shadow-sm">
+        <div className="flex items-center rounded-xl bg-white border border-slate-200 p-1 shadow-sm overflow-x-auto scrollbar-hide max-w-full shrink-0">
           <button
             onClick={() => setMatchMode('by_lead')}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+            className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap shrink-0 ${
               matchMode === 'by_lead'
                 ? 'bg-teal-600 text-white shadow-sm'
                 : 'text-slate-600 hover:text-slate-900'
@@ -97,7 +97,7 @@ export const SmartMatcherModal: React.FC<SmartMatcherModalProps> = ({
 
           <button
             onClick={() => setMatchMode('by_property')}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+            className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap shrink-0 ${
               matchMode === 'by_property'
                 ? 'bg-teal-600 text-white shadow-sm'
                 : 'text-slate-600 hover:text-slate-900'

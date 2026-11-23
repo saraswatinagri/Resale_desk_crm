@@ -542,21 +542,21 @@ export const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-2 sm:p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
       
       {/* Modal Card (Saraswati Nagri Multi-Step Stepper) */}
-      <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-2xl z-10 overflow-hidden max-h-[92vh] flex flex-col text-xs">
+      <div className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl border border-slate-200 w-full max-w-2xl z-10 overflow-hidden max-h-[96vh] sm:max-h-[92vh] flex flex-col text-xs">
         
         {/* Modal Header (Exact Saraswati Nagri CRM projects/client.tsx style) */}
-        <div className="p-5 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-amber-50/40 shrink-0">
-          <div className="flex justify-between items-start mb-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-amber-100 text-amber-600 rounded-xl flex items-center justify-center font-bold">
+        <div className="p-3.5 sm:p-5 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-amber-50/40 shrink-0">
+          <div className="flex justify-between items-start mb-3 sm:mb-4">
+            <div className="flex items-center gap-2.5 sm:gap-3">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 bg-amber-100 text-amber-600 rounded-xl flex items-center justify-center font-bold shrink-0">
                 <Building2 className="w-5 h-5" />
               </div>
               <div>
-                <h2 className="text-lg font-black text-slate-800">Register New Property</h2>
-                <p className="text-xs font-semibold text-slate-600">
+                <h2 className="text-base sm:text-lg font-black text-slate-800">Register New Property</h2>
+                <p className="text-[11px] sm:text-xs font-semibold text-slate-600">
                   Step {step} of {STEPS.length} — {STEPS[step - 1].label}
                 </p>
               </div>
@@ -571,14 +571,14 @@ export const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
           </div>
 
           {/* Stepper Progress Bar (Exact Saraswati Nagri CRM amber bars - Clickable) */}
-          <div className="flex gap-1.5">
+          <div className="flex gap-1 sm:gap-1.5">
             {STEPS.map(s => (
               <button
                 key={s.id}
                 type="button"
                 onClick={() => { setErrorMsg(''); setStep(s.id); }}
                 title={`Step ${s.id}: ${s.label} (Click to jump)`}
-                className={`h-2 flex-1 rounded-full transition-all duration-300 cursor-pointer ${
+                className={`h-1.5 sm:h-2 flex-1 rounded-full transition-all duration-300 cursor-pointer ${
                   step >= s.id ? 'bg-amber-500 hover:bg-amber-600' : 'bg-slate-200 hover:bg-slate-300'
                 }`}
               />
@@ -587,7 +587,7 @@ export const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
         </div>
 
         {/* Modal Form Step Body */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+        <div className="flex-1 overflow-y-auto p-3.5 sm:p-6 space-y-4">
           
           {errorMsg && (
             <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">

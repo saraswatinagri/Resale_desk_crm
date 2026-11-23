@@ -168,17 +168,17 @@ export const AddLeadModal: React.FC<AddLeadModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden">
+    <div className="fixed inset-0 z-[80] flex items-center justify-center p-2.5 sm:p-4 bg-slate-900/40 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl sm:rounded-3xl shadow-xl border border-slate-200 w-full max-w-md max-h-[96vh] sm:max-h-[90vh] flex flex-col overflow-hidden">
         {/* Exact Saraswati Nagri FastAddLeadModal Header */}
-        <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-purple-100 text-purple-600 rounded-xl flex items-center justify-center">
+        <div className="p-3.5 sm:p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 shrink-0">
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 bg-purple-100 text-purple-600 rounded-xl flex items-center justify-center shrink-0">
               <UserPlus className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-lg font-black text-slate-800">Jaldi Lead Add Karo</h2>
-              <p className="text-xs font-semibold text-slate-500">30 second mein basic details save karo</p>
+              <h2 className="text-base sm:text-lg font-black text-slate-800">Jaldi Lead Add Karo</h2>
+              <p className="text-[11px] sm:text-xs font-semibold text-slate-500">30 second mein basic details save karo</p>
             </div>
           </div>
           <button
@@ -192,7 +192,7 @@ export const AddLeadModal: React.FC<AddLeadModalProps> = ({
 
         {/* Form Body */}
         <form onSubmit={handleSave} className="flex-1 flex flex-col overflow-hidden">
-          <div className="flex-1 overflow-y-auto p-5 space-y-6">
+          <div className="flex-1 overflow-y-auto p-3.5 sm:p-5 space-y-4 sm:space-y-6">
             {errorMsg && (
               <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-semibold flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4 shrink-0" />

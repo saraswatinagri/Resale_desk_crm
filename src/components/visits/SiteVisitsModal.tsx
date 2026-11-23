@@ -62,11 +62,11 @@ export const SiteVisitsDesk: React.FC<SiteVisitsDeskProps> = ({
     <div className="space-y-6 animate-in fade-in duration-300">
       
       {/* Tab Switcher */}
-      <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
+      <div className="flex items-center gap-2 border-b border-slate-200 pb-2 overflow-x-auto scrollbar-hide -mx-1 px-1">
         <button
           type="button"
           onClick={() => setActiveTab('scheduler')}
-          className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+          className={`inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap shrink-0 ${
             activeTab === 'scheduler'
               ? 'bg-amber-500 text-white shadow-sm'
               : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
@@ -79,7 +79,7 @@ export const SiteVisitsDesk: React.FC<SiteVisitsDeskProps> = ({
         <button
           type="button"
           onClick={() => setActiveTab('audit')}
-          className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+          className={`inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap shrink-0 ${
             activeTab === 'audit'
               ? 'bg-amber-600 text-white shadow-sm'
               : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'

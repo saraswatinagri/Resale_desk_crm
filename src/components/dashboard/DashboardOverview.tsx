@@ -68,16 +68,16 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
     <div className="space-y-6 animate-in fade-in duration-300">
       
       {/* Top Banner (Saraswati Nagri / Nagpur Properties Hero) */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-slate-900 via-slate-900 to-teal-950 p-6 sm:p-8 text-white shadow-xl">
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+      <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-r from-slate-900 via-slate-900 to-teal-950 p-4 sm:p-8 text-white shadow-xl">
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-6">
           <div>
-            <div className="flex items-center gap-2 mb-2">
+            <div className="flex items-center gap-2 mb-2 flex-wrap">
               <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-teal-500/20 text-teal-300 border border-teal-500/30">
                 Resale Desk Active
               </span>
-              <span className="text-xs text-slate-300 font-medium">Nagpur Properties & Saraswati Nagri CRM</span>
+              <span className="text-xs text-slate-300 font-medium">Nagpur Properties &amp; Saraswati Nagri CRM</span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
+            <h1 className="text-xl sm:text-3xl font-black tracking-tight text-white">
               Nagpur Real Estate Resale Desk
             </h1>
             <p className="mt-1 text-xs sm:text-sm text-slate-300 max-w-2xl leading-relaxed">
@@ -85,10 +85,10 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 shrink-0">
             <button
               onClick={onOpenAddLead}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-md transition-all cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3.5 sm:px-4 py-2 rounded-full bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-md transition-all cursor-pointer"
             >
               <Users className="w-3.5 h-3.5" />
               <span>+ Add Lead</span>
@@ -96,7 +96,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
 
             <button
               onClick={onOpenAddProperty}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs shadow-md transition-all cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3.5 sm:px-4 py-2 rounded-full bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs shadow-md transition-all cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>+ Add Property</span>
@@ -105,45 +105,45 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
         </div>
       </div>
 
-      {/* KPI Cards Grid (Exact Saraswati Nagri CRM Styling) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* KPI Cards Grid (Exact Saraswati Nagri CRM Styling - Responsive 2 Cols on Mobile) */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         
         {/* Total Listings */}
         <div 
           onClick={() => onSelectTab('properties')}
-          className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm hover:shadow-md hover:border-teal-300 transition-all cursor-pointer group"
+          className="bg-white rounded-2xl border border-slate-200 p-3.5 sm:p-5 shadow-xs hover:shadow-md hover:border-teal-300 transition-all cursor-pointer group flex flex-col justify-between"
         >
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-black text-slate-400 uppercase tracking-wider">Properties Inventory</span>
-            <div className="w-9 h-9 rounded-xl bg-teal-50 text-teal-700 flex items-center justify-center font-bold">
+            <span className="text-[10px] sm:text-[11px] font-black text-slate-400 uppercase tracking-wider truncate">Properties</span>
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-teal-50 text-teal-700 flex items-center justify-center font-bold shrink-0">
               <Building2 className="w-4 h-4" />
             </div>
           </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-2xl sm:text-3xl font-black text-slate-800">{totalProperties}</span>
-            <span className="text-xs font-bold text-emerald-600">({availableProperties.length} Available)</span>
+          <div className="mt-2.5 flex items-baseline gap-1.5 flex-wrap">
+            <span className="text-xl sm:text-3xl font-black text-slate-800">{totalProperties}</span>
+            <span className="text-[10px] sm:text-xs font-bold text-emerald-600">({availableProperties.length} Avail)</span>
           </div>
-          <p className="mt-1 text-xs text-slate-500">
-            Portfolio Value: <strong className="text-slate-800">{formatIndianCurrency(totalInventoryValue)}</strong>
+          <p className="mt-1 text-[11px] sm:text-xs text-slate-500 truncate">
+            Val: <strong className="text-slate-800">{formatIndianCurrency(totalInventoryValue)}</strong>
           </p>
         </div>
 
         {/* Total Leads */}
         <div 
           onClick={() => onSelectTab('leads')}
-          className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm hover:shadow-md hover:border-purple-300 transition-all cursor-pointer group"
+          className="bg-white rounded-2xl border border-slate-200 p-3.5 sm:p-5 shadow-xs hover:shadow-md hover:border-purple-300 transition-all cursor-pointer group flex flex-col justify-between"
         >
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-black text-slate-400 uppercase tracking-wider">Active Leads Desk</span>
-            <div className="w-9 h-9 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center font-bold">
+            <span className="text-[10px] sm:text-[11px] font-black text-slate-400 uppercase tracking-wider truncate">Active Leads</span>
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center font-bold shrink-0">
               <Users className="w-4 h-4" />
             </div>
           </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-2xl sm:text-3xl font-black text-slate-800">{totalLeads}</span>
-            <span className="text-xs font-bold text-rose-600">({hotLeads.length} Hot Leads)</span>
+          <div className="mt-2.5 flex items-baseline gap-1.5 flex-wrap">
+            <span className="text-xl sm:text-3xl font-black text-slate-800">{totalLeads}</span>
+            <span className="text-[10px] sm:text-xs font-bold text-rose-600">({hotLeads.length} Hot)</span>
           </div>
-          <p className="mt-1 text-xs text-slate-500">
+          <p className="mt-1 text-[11px] sm:text-xs text-slate-500 truncate">
             {leads.filter(l => l.intent.includes('Buy')).length} Buyers • {leads.filter(l => l.intent.includes('Rent')).length} Tenants
           </p>
         </div>
@@ -151,40 +151,40 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
         {/* Site Visits */}
         <div 
           onClick={() => onSelectTab('visits')}
-          className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm hover:shadow-md hover:border-amber-300 transition-all cursor-pointer group"
+          className="bg-white rounded-2xl border border-slate-200 p-3.5 sm:p-5 shadow-xs hover:shadow-md hover:border-amber-300 transition-all cursor-pointer group flex flex-col justify-between"
         >
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-black text-slate-400 uppercase tracking-wider">Site Visits</span>
-            <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center font-bold">
+            <span className="text-[10px] sm:text-[11px] font-black text-slate-400 uppercase tracking-wider truncate">Site Visits</span>
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center font-bold shrink-0">
               <Calendar className="w-4 h-4" />
             </div>
           </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-2xl sm:text-3xl font-black text-slate-800">{visitsScheduled}</span>
-            <span className="text-xs font-bold text-amber-600">Scheduled</span>
+          <div className="mt-2.5 flex items-baseline gap-1.5">
+            <span className="text-xl sm:text-3xl font-black text-slate-800">{visitsScheduled}</span>
+            <span className="text-[10px] sm:text-xs font-bold text-amber-600">Scheduled</span>
           </div>
-          <p className="mt-1 text-xs text-slate-500">
-            Besa, Wardha Road & Hingna field visits
+          <p className="mt-1 text-[11px] sm:text-xs text-slate-500 truncate">
+            Field visits in Besa &amp; Wardha Rd
           </p>
         </div>
 
         {/* Token Received / Converted */}
         <div 
           onClick={() => onSelectTab('leads')}
-          className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm hover:shadow-md hover:border-emerald-300 transition-all cursor-pointer group"
+          className="bg-white rounded-2xl border border-slate-200 p-3.5 sm:p-5 shadow-xs hover:shadow-md hover:border-emerald-300 transition-all cursor-pointer group flex flex-col justify-between"
         >
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-black text-slate-400 uppercase tracking-wider">Deals & Bookings</span>
-            <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold">
+            <span className="text-[10px] sm:text-[11px] font-black text-slate-400 uppercase tracking-wider truncate">Bookings</span>
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold shrink-0">
               <CheckCircle2 className="w-4 h-4" />
             </div>
           </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-2xl sm:text-3xl font-black text-slate-800">{closedDeals}</span>
-            <span className="text-xs font-bold text-emerald-600">Token / Converted</span>
+          <div className="mt-2.5 flex items-baseline gap-1.5">
+            <span className="text-xl sm:text-3xl font-black text-slate-800">{closedDeals}</span>
+            <span className="text-[10px] sm:text-xs font-bold text-emerald-600">Converted</span>
           </div>
-          <p className="mt-1 text-xs text-slate-500">
-            Fast conversions on Besa & Wardha Road
+          <p className="mt-1 text-[11px] sm:text-xs text-slate-500 truncate">
+            Tokens &amp; Registrations
           </p>
         </div>
 

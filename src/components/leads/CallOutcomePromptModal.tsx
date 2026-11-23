@@ -91,19 +91,19 @@ export const CallOutcomePromptModal: React.FC<CallOutcomePromptModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="relative w-full max-w-lg rounded-3xl bg-white border border-slate-200 shadow-2xl overflow-hidden text-xs">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="relative w-full max-w-lg rounded-2xl sm:rounded-3xl bg-white border border-slate-200 shadow-2xl overflow-hidden text-xs max-h-[96vh] sm:max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-200 bg-gradient-to-r from-teal-50 to-emerald-50">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-teal-600 text-white flex items-center justify-center shadow-sm">
+        <div className="flex items-center justify-between px-4 sm:px-5 py-3 sm:py-3.5 border-b border-slate-200 bg-gradient-to-r from-teal-50 to-emerald-50 shrink-0">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-xl bg-teal-600 text-white flex items-center justify-center shadow-sm shrink-0">
               <Phone className="w-4 h-4" />
             </div>
-            <div>
-              <h3 className="text-sm font-black text-slate-800">
+            <div className="min-w-0">
+              <h3 className="text-sm font-black text-slate-800 truncate">
                 Log Call Outcome — {lead.name}
               </h3>
-              <p className="text-[10px] text-slate-500 font-mono">
+              <p className="text-[10px] text-slate-500 font-mono truncate">
                 {lead.phone} · {lead.leadCode}
               </p>
             </div>
@@ -111,19 +111,19 @@ export const CallOutcomePromptModal: React.FC<CallOutcomePromptModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-white/80 transition-colors"
+            className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-white/80 transition-colors shrink-0 cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-5 space-y-4 max-h-[80vh] overflow-y-auto">
+        <form onSubmit={handleSubmit} className="p-3.5 sm:p-5 space-y-3.5 sm:space-y-4 overflow-y-auto flex-1">
           {/* Quick Outcome Chips */}
           <div>
             <label className="text-[11px] font-black uppercase tracking-wider text-slate-500 block mb-2">
               Select Call Outcome
             </label>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
               {OUTCOME_OPTIONS.map((opt) => {
                 const isSelected = outcome === opt.value;
                 return (

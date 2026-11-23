@@ -112,29 +112,29 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="relative w-full max-w-4xl max-h-[92vh] flex flex-col rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="relative w-full max-w-4xl max-h-[96vh] sm:max-h-[92vh] flex flex-col rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden">
         
         {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between gap-4">
-          <div>
+        <div className="px-3.5 sm:px-6 py-3 sm:py-4 border-b border-slate-200 bg-slate-50 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-4">
+          <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="font-mono text-xs font-bold uppercase px-2 py-0.5 rounded bg-teal-50 text-teal-700 border border-teal-200">
                 {property.locality}
               </span>
-              <h2 className="text-lg font-black text-slate-800">{property.title}</h2>
+              <h2 className="text-base sm:text-lg font-black text-slate-800 truncate">{property.title}</h2>
             </div>
-            <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
+            <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5 truncate">
               <MapPin className="h-3.5 w-3.5 text-teal-600 shrink-0" />
-              <span>{property.address}</span>
+              <span className="truncate">{property.address}</span>
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
             <select
               value={property.status}
               onChange={(e) => onUpdateStatus(property.id, e.target.value as PropertyStatus)}
-              className="text-xs font-semibold px-2.5 py-1.5 rounded-xl bg-white border border-slate-200 text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-500"
+              className="text-xs font-semibold px-2.5 py-1.5 rounded-xl bg-white border border-slate-200 text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-500 cursor-pointer"
             >
               <option value="available">🟢 Available</option>
               <option value="under_discussion">🟡 In Discussion</option>
@@ -145,7 +145,7 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
 
             <button
               onClick={onClose}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
             >
               <X className="h-5 w-5" />
             </button>
@@ -153,46 +153,46 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
         </div>
 
         {/* Modal Tabs Header */}
-        <div className="flex items-center gap-4 px-6 pt-3 border-b border-slate-200 bg-white text-xs font-semibold">
+        <div className="flex items-center gap-2 sm:gap-4 px-3 sm:px-6 pt-2.5 sm:pt-3 border-b border-slate-200 bg-white text-xs font-semibold overflow-x-auto scrollbar-hide shrink-0">
           <button
             onClick={() => setActiveTab('specs')}
-            className={`pb-2.5 border-b-2 flex items-center gap-1.5 transition-all ${
+            className={`pb-2 sm:pb-2.5 border-b-2 flex items-center gap-1.5 transition-all whitespace-nowrap shrink-0 cursor-pointer ${
               activeTab === 'specs'
                 ? 'border-teal-600 text-teal-700 font-bold'
                 : 'border-transparent text-slate-500 hover:text-slate-800'
             }`}
           >
             <Home className="h-3.5 w-3.5" />
-            <span>Specifications & Legal Audit</span>
+            <span>Specifications &amp; Legal Audit</span>
           </button>
 
           <button
             onClick={() => setActiveTab('matching_leads')}
-            className={`pb-2.5 border-b-2 flex items-center gap-1.5 transition-all ${
+            className={`pb-2 sm:pb-2.5 border-b-2 flex items-center gap-1.5 transition-all whitespace-nowrap shrink-0 cursor-pointer ${
               activeTab === 'matching_leads'
                 ? 'border-teal-600 text-teal-700 font-bold'
                 : 'border-transparent text-slate-500 hover:text-slate-800'
             }`}
           >
             <Sparkles className="h-3.5 w-3.5 text-amber-500" />
-            <span>Matching Buyer Leads ({matchedLeads.length})</span>
+            <span>Matching Leads ({matchedLeads.length})</span>
           </button>
 
           <button
             onClick={() => setActiveTab('share')}
-            className={`pb-2.5 border-b-2 flex items-center gap-1.5 transition-all ${
+            className={`pb-2 sm:pb-2.5 border-b-2 flex items-center gap-1.5 transition-all whitespace-nowrap shrink-0 cursor-pointer ${
               activeTab === 'share'
                 ? 'border-teal-600 text-teal-700 font-bold'
                 : 'border-transparent text-slate-500 hover:text-slate-800'
             }`}
           >
             <Share2 className="h-3.5 w-3.5" />
-            <span>WhatsApp Brochure & Share</span>
+            <span>WhatsApp Pitch &amp; Share</span>
           </button>
         </div>
 
         {/* Modal Scrollable Body */}
-        <div className="flex-1 overflow-y-auto p-6 bg-slate-50/50">
+        <div className="flex-1 overflow-y-auto p-3.5 sm:p-6 bg-slate-50/50">
           
           {/* TAB 1: SPECS & LEGAL AUDIT */}
           {activeTab === 'specs' && (

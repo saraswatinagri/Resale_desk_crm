@@ -430,11 +430,12 @@ export function App() {
           activeDesk={activeDesk}
           onToggleDesk={handleToggleDesk}
           currentUser={user}
+          onSignOut={signOut}
         />
 
         {/* Desk Switcher Context Strip */}
         {activeDesk === 'sales' && (
-          <div className="bg-purple-600 text-white px-4 md:px-8 py-2 text-xs font-semibold flex items-center justify-between shadow-sm">
+          <div className="bg-purple-600 text-white px-3 sm:px-6 md:px-8 py-2 text-xs font-semibold flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 shadow-sm">
             <div className="flex items-center gap-2">
               <Building2 className="w-4 h-4 text-purple-200 shrink-0" />
               <span>
@@ -444,7 +445,7 @@ export function App() {
             <button
               type="button"
               onClick={() => setActiveDesk('resale')}
-              className="px-2.5 py-1 rounded-lg bg-white/20 hover:bg-white/30 text-white font-bold text-[11px] flex items-center gap-1 transition-colors shrink-0 cursor-pointer"
+              className="px-2.5 py-1 rounded-lg bg-white/20 hover:bg-white/30 text-white font-bold text-[11px] flex items-center gap-1 transition-colors shrink-0 cursor-pointer self-end sm:self-auto"
             >
               <span>Open Resale Desk</span>
               <ArrowRight className="w-3 h-3" />
@@ -452,8 +453,8 @@ export function App() {
           </div>
         )}
 
-        {/* Page Content */}
-        <main className="flex-1 min-h-0 p-3 md:p-6 lg:p-8 max-w-[1600px] mx-auto w-full">
+        {/* Page Content (With bottom padding for fixed mobile nav bar) */}
+        <main className="flex-1 min-h-0 p-2.5 sm:p-4 md:p-6 lg:p-8 max-w-[1600px] mx-auto w-full pb-24 md:pb-8">
           {currentTab === 'dashboard' && (
             <DashboardOverview
               properties={properties}

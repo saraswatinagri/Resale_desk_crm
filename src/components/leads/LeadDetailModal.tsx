@@ -172,34 +172,34 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
   const currentStageObj = LEAD_STAGES.find(s => s.key === lead.stage) || LEAD_STAGES[0];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="relative w-full max-w-4xl max-h-[92vh] flex flex-col rounded-3xl bg-white border border-slate-200 shadow-2xl overflow-hidden text-xs">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="relative w-full max-w-4xl max-h-[96vh] sm:max-h-[92vh] flex flex-col rounded-2xl sm:rounded-3xl bg-white border border-slate-200 shadow-2xl overflow-hidden text-xs">
         
         {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-teal-50/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-teal-600 to-emerald-500 text-white flex items-center justify-center font-black text-lg shadow-md">
+        <div className="px-3.5 sm:px-6 py-3 sm:py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-teal-50/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 shrink-0">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
+            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-tr from-teal-600 to-emerald-500 text-white flex items-center justify-center font-black text-base sm:text-lg shadow-md shrink-0">
               {lead.name.charAt(0)}
             </div>
-            <div>
-              <div className="flex items-center gap-2 flex-wrap">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
                 <span className="font-mono text-[10px] font-bold px-2 py-0.5 rounded-full bg-teal-50 border border-teal-200 text-teal-700">
                   {lead.leadCode}
                 </span>
-                <h2 className="text-base font-black text-slate-800">{lead.name}</h2>
+                <h2 className="text-sm sm:text-base font-black text-slate-800 truncate">{lead.name}</h2>
                 {lead.priority === 'hot' && (
                   <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-rose-50 border border-rose-200 text-rose-700">
                     🔥 Hot Lead
                   </span>
                 )}
               </div>
-              <p className="text-xs text-slate-500 mt-0.5">
+              <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5 truncate">
                 {lead.phone} {lead.email ? `• ${lead.email}` : ''} • Owner: <span className="font-semibold text-slate-700">{lead.assignedTo}</span>
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
             <a
               href={`tel:${lead.phone}`}
               className="p-2 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 transition-colors"
@@ -218,7 +218,7 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
                 }
               }}
               title="Open WhatsApp in CRM (Saraswati Nagri)"
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 font-bold transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 sm:py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 font-bold transition-colors cursor-pointer"
             >
               <MessageSquare className="w-4 h-4" />
               <span>WhatsApp</span>
@@ -226,7 +226,7 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
 
             <button
               onClick={onClose}
-              className="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400 transition-colors"
+              className="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400 transition-colors cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>
@@ -234,9 +234,9 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
         </div>
 
         {/* Stage Prompt & Selector Strip */}
-        <div className="px-6 py-2.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between flex-wrap gap-2">
+        <div className="px-3.5 sm:px-6 py-2 sm:py-2.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between flex-wrap gap-2 shrink-0">
           <div className="flex items-center gap-2">
-            <span className="text-slate-500 font-bold">Pipeline Stage:</span>
+            <span className="text-slate-500 font-bold">Stage:</span>
             <select
               value={lead.stage}
               onChange={(e) => onUpdateStage(lead.id, e.target.value as LeadStage)}
@@ -248,26 +248,26 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
             </select>
           </div>
 
-          <div className="flex items-center gap-3 text-slate-600">
+          <div className="flex items-center gap-2 sm:gap-3 text-slate-600 flex-wrap">
             <span>Budget: <strong className="text-teal-700 font-bold">{lead.budgetDisplay}</strong></span>
             <span>•</span>
-            <span>Locations: <strong className="text-slate-800">{lead.preferredLocalities.join(', ')}</strong></span>
+            <span className="truncate max-w-[200px]">Locations: <strong className="text-slate-800">{lead.preferredLocalities.join(', ')}</strong></span>
           </div>
         </div>
 
         {/* Saraswati Nagri CRM Qualification Prompt */}
         {STAGE_PROMPTS[lead.stage] && (
-          <div className="px-6 py-2 bg-amber-50/70 border-b border-amber-200/80 text-[11px] text-amber-900 font-medium flex items-center gap-2">
-            <span className="font-bold uppercase tracking-wider text-[10px] bg-amber-200/60 px-1.5 py-0.2 rounded">Agent Prompt:</span>
-            <span>"{STAGE_PROMPTS[lead.stage]}"</span>
+          <div className="px-3.5 sm:px-6 py-1.5 sm:py-2 bg-amber-50/70 border-b border-amber-200/80 text-[11px] text-amber-900 font-medium flex items-center gap-2 shrink-0">
+            <span className="font-bold uppercase tracking-wider text-[9px] sm:text-[10px] bg-amber-200/60 px-1.5 py-0.2 rounded shrink-0">Prompt:</span>
+            <span className="truncate">"{STAGE_PROMPTS[lead.stage]}"</span>
           </div>
         )}
 
         {/* Tabs */}
-        <div className="flex items-center gap-2 px-6 pt-3 border-b border-slate-200 font-bold text-xs">
+        <div className="flex items-center gap-2 px-3 sm:px-6 pt-2.5 sm:pt-3 border-b border-slate-200 font-bold text-xs overflow-x-auto scrollbar-hide shrink-0">
           <button
             onClick={() => setActiveTab('matches')}
-            className={`pb-2.5 border-b-2 flex items-center gap-1.5 transition-all ${
+            className={`pb-2 sm:pb-2.5 border-b-2 flex items-center gap-1.5 transition-all whitespace-nowrap shrink-0 cursor-pointer ${
               activeTab === 'matches'
                 ? 'border-teal-600 text-teal-700 font-extrabold'
                 : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -279,7 +279,7 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
 
           <button
             onClick={() => setActiveTab('calls')}
-            className={`pb-2.5 border-b-2 flex items-center gap-1.5 transition-all ${
+            className={`pb-2 sm:pb-2.5 border-b-2 flex items-center gap-1.5 transition-all whitespace-nowrap shrink-0 cursor-pointer ${
               activeTab === 'calls'
                 ? 'border-teal-600 text-teal-700 font-extrabold'
                 : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -291,7 +291,7 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
 
           <button
             onClick={() => setActiveTab('visits')}
-            className={`pb-2.5 border-b-2 flex items-center gap-1.5 transition-all ${
+            className={`pb-2 sm:pb-2.5 border-b-2 flex items-center gap-1.5 transition-all whitespace-nowrap shrink-0 cursor-pointer ${
               activeTab === 'visits'
                 ? 'border-teal-600 text-teal-700 font-extrabold'
                 : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -303,7 +303,7 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
 
           <button
             onClick={() => setActiveTab('details')}
-            className={`pb-2.5 border-b-2 flex items-center gap-1.5 transition-all ${
+            className={`pb-2 sm:pb-2.5 border-b-2 flex items-center gap-1.5 transition-all whitespace-nowrap shrink-0 cursor-pointer ${
               activeTab === 'details'
                 ? 'border-teal-600 text-teal-700 font-extrabold'
                 : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -315,7 +315,7 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
 
           <button
             onClick={() => setActiveTab('whatsapp')}
-            className={`pb-2.5 border-b-2 flex items-center gap-1.5 transition-all ${
+            className={`pb-2 sm:pb-2.5 border-b-2 flex items-center gap-1.5 transition-all whitespace-nowrap shrink-0 cursor-pointer ${
               activeTab === 'whatsapp'
                 ? 'border-emerald-600 text-emerald-700 font-extrabold'
                 : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -328,7 +328,7 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-3.5 sm:p-6">
           
           {/* TAB 1: MATCHING PROPERTIES */}
           {activeTab === 'matches' && (
