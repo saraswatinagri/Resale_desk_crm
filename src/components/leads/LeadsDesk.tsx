@@ -32,7 +32,7 @@ import {
 } from '../../lib/resale';
 import { CallOutcomePromptModal } from './CallOutcomePromptModal';
 import { useAuth } from '../../lib/auth-context';
-import { canUserCallLead } from '../../lib/lead-permissions';
+import { canUserCallLead, canUserDeleteLead } from '../../lib/lead-permissions';
 
 interface LeadsDeskProps {
   leads: ResaleLead[];
@@ -784,6 +784,22 @@ export const LeadsDesk: React.FC<LeadsDeskProps> = ({
                         >
                           <ChevronRight className="w-4 h-4" />
                         </button>
+
+                        {canUserDeleteLead(user) && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (window.confirm(`Permanently remove lead "${lead.name}" (${lead.leadCode})? This action cannot be undone.`)) {
+                                onDeleteLead(lead.id);
+                              }
+                            }}
+                            title="Delete Lead (Admin Only)"
+                            className="h-9 w-9 rounded-xl bg-rose-50 border border-rose-100 text-rose-500 hover:bg-rose-600 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>

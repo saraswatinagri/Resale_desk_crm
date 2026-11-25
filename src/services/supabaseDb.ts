@@ -537,8 +537,20 @@ export async function scheduleVisitInSupabase(
 
 export async function deleteLeadInSupabase(leadId: string): Promise<{ error?: string }> {
   if (!supabase) return { error: 'Supabase not configured' };
-  const { error } = await supabase.from('leads').delete().eq('id', leadId);
-  return error ? { error: error.message } : {};
+  try {
+    // Defensively clean child references so foreign key constraints don't reject delete
+    await Promise.allSettled([
+      supabase.from('lead_interactions').delete().eq('lead_id', leadId),
+      supabase.from('call_logs').delete().eq('lead_id', leadId),
+      supabase.from('site_visits').delete().eq('lead_id', leadId),
+      supabase.from('whatsapp_messages').delete().eq('lead_id', leadId),
+    ]);
+
+    const { error } = await supabase.from('leads').delete().eq('id', leadId);
+    return error ? { error: error.message } : {};
+  } catch (err: any) {
+    return { error: err.message || 'Failed to delete lead from Supabase' };
+  }
 }
 
 // ── Resale Properties (public.resale_properties) ─────────────────────────────

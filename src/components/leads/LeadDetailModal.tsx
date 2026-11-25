@@ -20,6 +20,7 @@ import {
   RefreshCw,
   Lock,
   Bot,
+  Trash2,
 } from 'lucide-react';
 import { ResaleLead, ResaleProperty, LeadStage, CallLog, ScheduledVisit } from '../../types/crm';
 import { 
@@ -31,7 +32,7 @@ import {
 import { getMatchingPropertiesForLead } from '../../utils/matcher';
 import { LEAD_STAGES, SALES_AGENTS } from '../../data/constants';
 import { useAuth } from '../../lib/auth-context';
-import { canUserCallLead } from '../../lib/lead-permissions';
+import { canUserCallLead, canUserDeleteLead } from '../../lib/lead-permissions';
 import { 
   fetchLeadWhatsAppMessages, 
   sendLeadWhatsAppMessage, 
@@ -49,6 +50,7 @@ interface LeadDetailModalProps {
   onAddCallLog: (leadId: string, log: Omit<CallLog, 'id' | 'date'>) => void;
   onScheduleVisit: (leadId: string, visit: Omit<ScheduledVisit, 'id'>) => void;
   onOpenWhatsAppChat?: (lead: ResaleLead) => void;
+  onDeleteLead?: (leadId: string) => void;
 }
 
 // Saraswati Nagri CRM Stage Questions
@@ -70,6 +72,7 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
   onAddCallLog,
   onScheduleVisit,
   onOpenWhatsAppChat,
+  onDeleteLead,
 }) => {
   const { user, profiles } = useAuth();
   const [callPermissionAlert, setCallPermissionAlert] = useState<string | null>(null);
@@ -1005,7 +1008,29 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
 
         {/* Footer */}
         <div className="px-6 py-3 border-t border-slate-100 bg-slate-50 flex items-center justify-between">
-          <span className="text-slate-400 font-mono text-[11px]">Lead ID: {lead.id}</span>
+          <div className="flex items-center gap-2">
+            <span className="text-slate-400 font-mono text-[11px]">Lead ID: {lead.id}</span>
+            {canUserDeleteLead(user) && onDeleteLead && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (
+                    window.confirm(
+                      `Permanently delete lead "${lead.name}" (${lead.leadCode})? This action will remove all call logs and WhatsApp history.`
+                    )
+                  ) {
+                    onDeleteLead(lead.id);
+                    onClose();
+                  }
+                }}
+                className="px-3 py-1 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 hover:text-rose-700 font-bold text-xs flex items-center gap-1 transition-colors border border-rose-200 cursor-pointer ml-2"
+                title="Super Admin: Permanently Delete Lead"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Delete Lead</span>
+              </button>
+            )}
+          </div>
           <button
             onClick={onClose}
             className="px-4 py-1.5 rounded-full border border-slate-200 bg-white text-slate-700 font-bold hover:bg-slate-100"

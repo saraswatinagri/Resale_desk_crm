@@ -43,6 +43,7 @@ import {
   ScheduledVisit,
 } from './types/crm';
 import { Building2, ArrowRight } from 'lucide-react';
+import { updateDynamicKnowledgeBase } from './services/knowledgeBaseService';
 
 export function App() {
   const { user, profiles, isLoading: authLoading, isLiveSupabase, signOut } = useAuth();
@@ -120,9 +121,13 @@ export function App() {
         if (!projectsRes.error && projectsRes.data) {
           setSaraswatiProjects(projectsRes.data);
         }
+
+        // Auto-update live AI Knowledge Base with fresh database inventory
+        updateDynamicKnowledgeBase().catch(() => {});
       } else {
         setProperties(storage.getProperties());
         setLeads(storage.getLeads());
+        updateDynamicKnowledgeBase().catch(() => {});
       }
     } catch (err) {
       console.error('Data reload error:', err);
@@ -251,22 +256,17 @@ export function App() {
 
   // Handler: Delete Lead
   const handleDeleteLead = async (leadId: string) => {
+    storage.deleteLead(leadId);
     if (isLiveSupabase) {
       const res = await deleteLeadInSupabase(leadId);
       if (res.error) {
         showNotification(res.error, 'err');
         return;
       }
-      setActiveLead(null);
-      await reloadData();
-      showNotification('Lead removed from Supabase');
-      return;
     }
-
-    storage.deleteLead(leadId);
     setActiveLead(null);
-    reloadData();
-    showNotification('Lead removed from desk');
+    await reloadData();
+    showNotification('Lead permanently deleted');
   };
 
   // Handler: Delete Property
@@ -582,6 +582,7 @@ export function App() {
           onAddCallLog={handleAddCallLog}
           onScheduleVisit={handleScheduleVisit}
           onOpenWhatsAppChat={setWhatsAppLead}
+          onDeleteLead={handleDeleteLead}
         />
       )}
 

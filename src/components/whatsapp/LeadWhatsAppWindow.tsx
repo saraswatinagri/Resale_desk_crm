@@ -345,12 +345,17 @@ export const LeadWhatsAppWindow: React.FC<LeadWhatsAppWindowProps> = ({
         instanceName: activeSession?.instanceName,
       });
 
+      const phoneDigits = phone.replace(/\D/g, '');
+      const phone10 = phoneDigits.slice(-10);
+      const waLink = res.waLink || `https://wa.me/91${phone10}?text=${encodeURIComponent(textToSend)}`;
+
       if (!res.success) {
         toast.error('Could not save WhatsApp message to database');
       } else if (res.realSent) {
-        toast.success('Delivered to WhatsApp & archived in CRM!');
+        toast.success(`Delivered to ${leadName}'s WhatsApp (+91 ${phone10}) & archived in CRM!`);
       } else {
-        toast.success('WhatsApp message logged & synced with Saraswati Nagri CRM');
+        toast.success(`Message logged in CRM. Opening WhatsApp for ${leadName}...`);
+        window.open(waLink, '_blank', 'noopener,noreferrer');
       }
     } catch (err: any) {
       toast.error('Send error: ' + (err.message || 'Unknown'));

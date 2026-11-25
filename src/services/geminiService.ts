@@ -3,6 +3,8 @@
  * Powers intelligent 24/7 WhatsApp auto-replies and draft generation for Saraswati Nagri & Resale Desk CRM.
  */
 
+import { getLiveKnowledgeBasePrompt, getKnowledgeBase } from './knowledgeBaseService';
+
 export interface GeminiReplyRequest {
   message: string;
   senderPhone?: string;
@@ -340,7 +342,19 @@ function getSmartFallbackReply(req: GeminiReplyRequest): string {
   const loc = req.locality || 'Nagpur';
   const budget = req.budget ? `(${req.budget})` : '';
 
+  // Find real matching properties from dynamic knowledge base
+  const kb = getKnowledgeBase();
+  const matchedProp = kb.resaleInventory.find(
+    (p) =>
+      p.locality.toLowerCase().includes(loc.toLowerCase()) ||
+      loc.toLowerCase().includes(p.locality.toLowerCase()) ||
+      (req.propertyCategory && p.category === req.propertyCategory)
+  );
+
   if (req.actionType === 'pitch') {
+    if (matchedProp) {
+      return `Namaste ${name}! 🙏 Aapke requirement ke anusaar ${matchedProp.locality} mein verified property available hai: *${matchedProp.title}* (${matchedProp.price}, ${matchedProp.areaSqFt} sq.ft, ${matchedProp.approvals}). Kya main layout aur photos WhatsApp karoon? - सरस्वती नगरी रिसेल डेस्क`;
+    }
     if (req.propertyCategory === 'flat' || lower.includes('flat') || lower.includes('bhk')) {
       return `Namaste ${name}! 🙏 Humare paas ${loc} mein prime ready-to-move flats available hain aapke target budget ${budget || '₹45L - ₹75L'} ke andar. Sabhi properties verified clear-title aur NMRDA/RERA approved hain. Kya main aapko photos aur floor plan share karoon? - सरस्वती नगरी रिसेल डेस्क`;
     }
@@ -398,7 +412,11 @@ export async function generateGeminiRealEstateReply(req: GeminiReplyRequest): Pr
           ? 'TASK: Explain property pricing (₹2,500/sqft for plots, ₹45L-₹75L for flats) and ask their timeline.'
           : 'TASK: Compose Riya\'s helpful, polite, and persuasive WhatsApp reply in 2-3 lines of natural Hinglish.';
 
+      const dynamicKnowledge = getLiveKnowledgeBasePrompt();
+
       const userPrompt = `${SYSTEM_INSTRUCTION}
+
+${dynamicKnowledge}
 
 LEAD PROFILE:
 - Client Name: ${req.senderName || 'Client'}
@@ -415,7 +433,7 @@ INCOMING MESSAGE / CONTEXT:
 "${req.message}"
 
 ${actionPromptInstruction}
-Keep it within 2-4 sentences in natural Nagpur Hinglish (Hindi + English) with polite greeting and inviting call-to-action.`;
+Keep it within 2-4 sentences in natural Nagpur Hinglish (Hindi + English) with polite greeting and inviting call-to-action. Reference real properties or plotted layout details from the knowledge base where relevant.`;
 
       const aiRes = await callGeminiApi(userPrompt, apiKey);
       if (aiRes?.text) {

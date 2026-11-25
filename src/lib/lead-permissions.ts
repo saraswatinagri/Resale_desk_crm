@@ -70,3 +70,20 @@ export function canUserCallLead(
     reason: `Yeh lead ${assigned} ko assigned hai. Saraswati Nagri policy ke mutabiq sirf assigned executive ya manager is lead ko call kar sakte hain.`,
   };
 }
+
+/**
+ * Checks if the currently logged-in user is authorized to delete a lead.
+ * Super Admin, Admin, Director, Management tier users have full authority to delete leads.
+ */
+export function canUserDeleteLead(user: CrmUserProfile | null | undefined): boolean {
+  if (!user) return true; // fallback / demo
+  const r = normRole(user.role);
+  return (
+    r.includes('super_admin') ||
+    r.includes('superadmin') ||
+    r.includes('admin') ||
+    r.includes('director') ||
+    r.includes('management') ||
+    r.includes('manager')
+  );
+}
