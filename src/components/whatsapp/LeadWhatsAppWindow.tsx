@@ -17,7 +17,12 @@ import {
   MapPin,
   FileCheck2,
   ReceiptIndianRupee,
-  PlusSquare
+  PlusSquare,
+  Key,
+  Bot,
+  Check,
+  ShieldCheck,
+  AlertCircle
 } from 'lucide-react';
 import {
   fetchLeadWhatsAppMessages,
@@ -28,8 +33,15 @@ import {
 } from '../../services/whatsappService';
 import { toast } from '../../utils/toast';
 import { parseWhatsAppPropertyMessage } from '../../utils/whatsappPropertyParser';
-import { generateGeminiRealEstateReply } from '../../services/geminiService';
-import type { ResaleProperty } from '../../types/crm';
+import {
+  generateGeminiRealEstateReply,
+  getGeminiApiKey,
+  saveGeminiApiKey,
+  clearGeminiApiKey,
+  testGeminiKey,
+  isGeminiConfigured,
+} from '../../services/geminiService';
+import type { ResaleProperty, ResaleLead } from '../../types/crm';
 
 export type WaLanguage = 'Hindi' | 'Marathi' | 'English';
 
@@ -45,6 +57,7 @@ export interface LeadWhatsAppWindowProps {
   variant?: 'overlay' | 'panel';
   onConvertToProperty?: (prefill: Partial<ResaleProperty>) => void;
   properties?: ResaleProperty[];
+  lead?: ResaleLead;
 }
 
 const IST = 'Asia/Kolkata';
@@ -155,6 +168,7 @@ export const LeadWhatsAppWindow: React.FC<LeadWhatsAppWindowProps> = ({
   variant = 'overlay',
   onConvertToProperty,
   properties = [],
+  lead,
 }) => {
   const [messages, setMessages] = useState<WhatsAppMessageItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -166,6 +180,63 @@ export const LeadWhatsAppWindow: React.FC<LeadWhatsAppWindowProps> = ({
   const [isPropertyPickerOpen, setIsPropertyPickerOpen] = useState(false);
   const [propertySearch, setPropertySearch] = useState('');
   const endRef = useRef<HTMLDivElement>(null);
+
+  // Gemini AI Key Connect Modal state
+  const [isAiKeyModalOpen, setIsAiKeyModalOpen] = useState(false);
+  const [aiKeyInput, setAiKeyInput] = useState('');
+  const [isTestingKey, setIsTestingKey] = useState(false);
+  const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [isAiActive, setIsAiActive] = useState<boolean>(isGeminiConfigured());
+  const [isDraftingAi, setIsDraftingAi] = useState(false);
+  const [activeAiAction, setActiveAiAction] = useState<string | null>(null);
+
+  useEffect(() => {
+    setIsAiActive(isGeminiConfigured());
+  }, []);
+
+  // Open AI modal and prefill existing key
+  const handleOpenAiKeyModal = () => {
+    setAiKeyInput(getGeminiApiKey());
+    setTestResult(null);
+    setIsAiKeyModalOpen(true);
+  };
+
+  const handleTestKey = async () => {
+    if (!aiKeyInput.trim()) {
+      setTestResult({ success: false, message: 'Please enter a Gemini API Key first.' });
+      return;
+    }
+    setIsTestingKey(true);
+    setTestResult(null);
+    try {
+      const res = await testGeminiKey(aiKeyInput.trim());
+      setTestResult(res);
+      if (res.success) {
+        toast.success('Live Gemini AI connection verified!');
+      } else {
+        toast.error('Gemini Key verification failed.');
+      }
+    } catch (e: any) {
+      setTestResult({ success: false, message: e.message || 'Network error' });
+    } finally {
+      setIsTestingKey(false);
+    }
+  };
+
+  const handleSaveKey = () => {
+    const trimmed = aiKeyInput.trim();
+    if (!trimmed) {
+      clearGeminiApiKey();
+      setIsAiActive(false);
+      toast.info('Gemini API Key removed. Using smart template fallback.');
+      setIsAiKeyModalOpen(false);
+      return;
+    }
+    saveGeminiApiKey(trimmed);
+    setIsAiActive(true);
+    toast.success('✨ Gemini AI Key connected! Riya 24/7 Agent is now active.');
+    setIsAiKeyModalOpen(false);
+  };
 
   // Generate and insert pitch for chosen property
   const handleSelectPropertyPitch = (prop: ResaleProperty) => {
@@ -253,18 +324,44 @@ export const LeadWhatsAppWindow: React.FC<LeadWhatsAppWindowProps> = ({
   }, [messages.length]);
 
   const isConnected = Boolean(activeSession && activeSession.status === 'connected');
-  const [isDraftingAi, setIsDraftingAi] = useState(false);
 
-  const handleGenerateGeminiDraft = async () => {
+  /**
+   * Main AI Auto-Reply Generator
+   * Intelligently combines lead's profile (name, locality, budget, stage, intent)
+   * with conversation history and targeted actionType.
+   */
+  const handleGenerateAiResponse = async (
+    actionType: 'reply' | 'pitch' | 'site_visit' | 'pricing' | 'loan' = 'reply',
+    customPromptText?: string
+  ) => {
     setIsDraftingAi(true);
+    setActiveAiAction(actionType);
     try {
-      const lastClientMsg = [...messages].reverse().find((m) => m.direction === 'inbound')?.text || 'Regarding property inquiry in Nagpur';
+      // Find latest inbound message if any
+      const lastClientMsg = customPromptText || [...messages].reverse().find((m) => m.direction === 'inbound')?.text || '';
+
+      const effectiveMessage =
+        lastClientMsg ||
+        (actionType === 'pitch'
+          ? `Show me properties in ${lead?.preferredLocalities?.[0] || 'Nagpur'} for budget ${lead?.budgetDisplay || '25-50 Lakhs'}`
+          : actionType === 'site_visit'
+          ? 'I want to schedule a site visit'
+          : actionType === 'loan'
+          ? 'What is the bank loan procedure and EMI?'
+          : `Inquiry regarding ${lead?.intent || projectName}`);
+
       const res = await generateGeminiRealEstateReply({
-        message: lastClientMsg,
+        message: effectiveMessage,
         senderName: leadName,
         senderPhone: phone,
         leadStage: stage,
         projectName,
+        locality: lead?.preferredLocalities?.join(', ') || 'Nagpur',
+        budget: lead?.budgetDisplay,
+        propertyCategory: lead?.propertyCategory,
+        intent: lead?.intent,
+        notes: lead?.notes,
+        actionType,
         recentHistory: messages.slice(-5).map((m) => ({
           sender: m.direction === 'inbound' ? 'lead' : 'agent',
           text: m.text,
@@ -273,12 +370,14 @@ export const LeadWhatsAppWindow: React.FC<LeadWhatsAppWindowProps> = ({
 
       if (res?.replyText) {
         setChatMessage(res.replyText);
-        toast.success(res.source === 'gemini_api' ? '✨ Gemini AI draft ready!' : 'AI draft generated!');
+        const engineLabel = res.source === 'gemini_api' ? `✨ Gemini AI (${res.modelUsed || 'Flash'})` : 'AI Smart Template';
+        toast.success(`${engineLabel} draft ready!`);
       }
     } catch (err: any) {
       toast.error('AI draft error: ' + (err.message || 'Failed'));
     } finally {
       setIsDraftingAi(false);
+      setActiveAiAction(null);
     }
   };
 
@@ -373,6 +472,21 @@ export const LeadWhatsAppWindow: React.FC<LeadWhatsAppWindowProps> = ({
         </div>
 
         <div className="flex items-center gap-1.5">
+          {/* AI Key Status Button */}
+          <button
+            type="button"
+            onClick={handleOpenAiKeyModal}
+            title={isAiActive ? 'Gemini AI Active · Click to manage API key' : 'Connect Gemini AI Key for 24/7 auto-replies'}
+            className={`px-2 py-1 rounded-full text-[10px] font-black flex items-center gap-1 transition-all cursor-pointer shadow-xs ${
+              isAiActive
+                ? 'bg-purple-600/90 text-white border border-purple-400/50 hover:bg-purple-700'
+                : 'bg-white/20 text-white/90 border border-white/30 hover:bg-white/30'
+            }`}
+          >
+            <Bot className="w-3 h-3 text-purple-200" />
+            <span>{isAiActive ? 'AI 🟢' : 'AI 🔑'}</span>
+          </button>
+
           <button
             type="button"
             onClick={loadChat}
@@ -393,7 +507,9 @@ export const LeadWhatsAppWindow: React.FC<LeadWhatsAppWindowProps> = ({
             <p className="truncate text-[11px] font-black text-slate-800 leading-tight">
               {projectName}
             </p>
-            <p className="truncate text-[9px] font-semibold text-slate-400">{stage}</p>
+            <p className="truncate text-[9px] font-semibold text-slate-400">
+              {stage} {lead?.budgetDisplay ? `· ${lead.budgetDisplay}` : ''}
+            </p>
           </div>
         </div>
 
@@ -407,7 +523,7 @@ export const LeadWhatsAppWindow: React.FC<LeadWhatsAppWindowProps> = ({
               title="Parse this WhatsApp conversation and register as Resale Property"
             >
               <Building2 className="w-3 h-3" />
-              <span>+ Resale Property</span>
+              <span>+ Resale</span>
             </button>
           )}
 
@@ -427,28 +543,33 @@ export const LeadWhatsAppWindow: React.FC<LeadWhatsAppWindowProps> = ({
         </div>
       </div>
 
-      {/* 3. Session info or connect banner */}
-      {!isConnected && (
-        <div className="bg-amber-50 border-b border-amber-200/80 px-4 py-2 flex items-center justify-between gap-2 shrink-0">
-          <p className="text-[11px] font-medium text-amber-900">
-            Saraswati Nagri Line: <span className="font-bold">+91 89560 40220</span>
-          </p>
-          <button
-            type="button"
-            onClick={onConnect}
-            className="text-[10px] font-black uppercase tracking-wider text-green-700 hover:text-green-900 underline cursor-pointer shrink-0"
-          >
-            Lines Status →
-          </button>
+      {/* 3. AI Agent Status Strip */}
+      <div className="bg-gradient-to-r from-purple-50 via-indigo-50 to-purple-50 border-b border-purple-200/60 px-3.5 py-1.5 flex items-center justify-between gap-2 shrink-0">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <Bot className="w-3.5 h-3.5 text-purple-600 shrink-0" />
+          <span className="text-[10px] font-bold text-purple-900 truncate">
+            {isAiActive ? (
+              <>AI Auto-Agent: <strong className="text-purple-700">Riya Concierge (Active)</strong></>
+            ) : (
+              <>AI Agent: <span className="text-slate-600">Smart Template Mode</span></>
+            )}
+          </span>
         </div>
-      )}
+        <button
+          type="button"
+          onClick={handleOpenAiKeyModal}
+          className="text-[10px] font-black text-purple-700 hover:text-purple-900 underline cursor-pointer shrink-0"
+        >
+          {isAiActive ? 'Manage Key' : '+ Connect Gemini Key'}
+        </button>
+      </div>
 
       {/* 4. Chat Thread Stream */}
       <div className="flex-1 overflow-y-auto overscroll-contain px-3 py-3 space-y-1.5 flex flex-col min-h-0 bg-[#efeae2] custom-scrollbar">
         {/* Discussion Banner */}
         <div className="mx-auto mb-2 max-w-[94%] rounded-lg bg-[#fff5c4] border border-[#f5e6a8] px-3 py-1.5 text-center text-[11px] font-semibold text-slate-700 shadow-xs">
           Discussing <span className="font-black text-slate-900">{leadName}</span> ·{' '}
-          {projectName}
+          {lead?.preferredLocalities?.join(', ') || projectName}
         </div>
 
         {loading ? (
@@ -462,7 +583,7 @@ export const LeadWhatsAppWindow: React.FC<LeadWhatsAppWindowProps> = ({
             </div>
             <p className="text-xs text-slate-700 font-bold">No WhatsApp messages yet</p>
             <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
-              Tap a quick template below or type a message. All chats are archived in Supabase!
+              Click <strong>✨ AI Auto-Reply</strong> below to draft an opening tailored to {leadName}'s profile!
             </p>
           </div>
         ) : (
@@ -502,17 +623,31 @@ export const LeadWhatsAppWindow: React.FC<LeadWhatsAppWindowProps> = ({
 
                   <p className="text-slate-800">{m.text}</p>
 
-                  {onConvertToProperty && m.text && m.text.length > 20 && (
-                    <div className="mt-1 pt-1 border-t border-black/5 flex items-center justify-between gap-1">
+                  {/* Actions for Inbound Messages: Inline AI Auto-Reply & Add as Property */}
+                  {inbound && (
+                    <div className="mt-1.5 pt-1 border-t border-black/5 flex items-center justify-between gap-2">
                       <button
                         type="button"
-                        onClick={() => handleConvertChatToProperty(m.text)}
-                        className="text-[10px] font-bold text-amber-700 hover:text-amber-900 hover:underline flex items-center gap-1 cursor-pointer"
-                        title="Parse this message text as property listing"
+                        onClick={() => handleGenerateAiResponse('reply', m.text)}
+                        disabled={isDraftingAi}
+                        className="text-[10px] font-bold text-purple-700 hover:text-purple-900 bg-purple-50 hover:bg-purple-100 border border-purple-200/60 px-2 py-0.5 rounded-full inline-flex items-center gap-1 cursor-pointer transition-colors"
+                        title="Draft an AI reply directly to this client message"
                       >
-                        <PlusSquare className="w-3 h-3" />
-                        <span>Add as Property</span>
+                        <Sparkles className="w-3 h-3 text-purple-600" />
+                        <span>✨ AI Reply</span>
                       </button>
+
+                      {onConvertToProperty && m.text && m.text.length > 20 && (
+                        <button
+                          type="button"
+                          onClick={() => handleConvertChatToProperty(m.text)}
+                          className="text-[10px] font-bold text-amber-700 hover:text-amber-900 hover:underline flex items-center gap-1 cursor-pointer"
+                          title="Parse this message text as property listing"
+                        >
+                          <PlusSquare className="w-3 h-3" />
+                          <span>+ Property</span>
+                        </button>
+                      )}
                     </div>
                   )}
 
@@ -537,32 +672,75 @@ export const LeadWhatsAppWindow: React.FC<LeadWhatsAppWindowProps> = ({
         <div ref={endRef} />
       </div>
 
-      {/* 5. Quick Replies Chips Bar */}
+      {/* 5. AI Copilot & Quick Reply Chips Bar */}
       <div className="bg-[#f0f2f5] border-t border-black/5 px-2.5 py-2 shrink-0">
         <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide pb-1">
+          {/* Main 1-Click AI Auto-Reply Button */}
           <button
             type="button"
-            onClick={handleGenerateGeminiDraft}
+            onClick={() => handleGenerateAiResponse('reply')}
             disabled={isDraftingAi}
-            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-[11px] font-bold shrink-0 transition-all cursor-pointer shadow-2xs disabled:opacity-50"
-            title="Generate AI reply draft using Google Gemini"
+            className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-[11px] font-black shrink-0 transition-all cursor-pointer shadow-xs disabled:opacity-50"
+            title="Generate AI reply tailored to lead profile & last chat"
           >
-            <Sparkles className="w-3 h-3 text-purple-200" />
-            <span>{isDraftingAi ? 'Drafting...' : '✨ Gemini AI Draft'}</span>
+            {isDraftingAi && activeAiAction === 'reply' ? (
+              <Loader2 className="w-3 h-3 animate-spin text-white" />
+            ) : (
+              <Sparkles className="w-3 h-3 text-purple-200" />
+            )}
+            <span>{isDraftingAi && activeAiAction === 'reply' ? 'Drafting…' : '✨ AI Auto-Reply'}</span>
           </button>
 
+          {/* AI Pitch Button */}
+          <button
+            type="button"
+            onClick={() => handleGenerateAiResponse('pitch')}
+            disabled={isDraftingAi}
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 text-[11px] font-bold shrink-0 transition-colors cursor-pointer disabled:opacity-50"
+            title="AI Property Pitch matching this lead's budget & locality"
+          >
+            <Building2 className="w-3 h-3 text-indigo-600" />
+            <span>🏡 AI Pitch</span>
+          </button>
+
+          {/* AI Sunday Visit Button */}
+          <button
+            type="button"
+            onClick={() => handleGenerateAiResponse('site_visit')}
+            disabled={isDraftingAi}
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 text-[11px] font-bold shrink-0 transition-colors cursor-pointer disabled:opacity-50"
+            title="Invite for Sunday site visit with car pickup"
+          >
+            <Calendar className="w-3 h-3 text-amber-600" />
+            <span>📅 Sunday Visit</span>
+          </button>
+
+          {/* AI Loan Sanction Button */}
+          <button
+            type="button"
+            onClick={() => handleGenerateAiResponse('loan')}
+            disabled={isDraftingAi}
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 text-[11px] font-bold shrink-0 transition-colors cursor-pointer disabled:opacity-50"
+            title="Explain 80-90% SBI/HDFC bank loan sanction"
+          >
+            <ReceiptIndianRupee className="w-3 h-3 text-emerald-600" />
+            <span>💰 Loan Quote</span>
+          </button>
+
+          {/* Share Inventory Property Picker */}
           {properties && properties.length > 0 && (
             <button
               type="button"
               onClick={() => setIsPropertyPickerOpen(!isPropertyPickerOpen)}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-500 hover:bg-amber-600 text-white text-[11px] font-bold shrink-0 transition-colors cursor-pointer shadow-2xs"
-              title="Select a property from CRM inventory to pitch over WhatsApp"
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 text-[11px] font-bold shrink-0 transition-colors cursor-pointer"
+              title="Select an inventory property to pitch over WhatsApp"
             >
-              <Building2 className="w-3 h-3" />
-              <span>🏡 Share Property Details</span>
+              <FileCheck2 className="w-3 h-3 text-slate-600" />
+              <span>Inventory</span>
             </button>
           )}
 
+          {/* Quick Static Chips */}
           {QUICK_CHIPS.map((chip) => {
             const Icon = chip.icon;
             return (
@@ -642,7 +820,7 @@ export const LeadWhatsAppWindow: React.FC<LeadWhatsAppWindowProps> = ({
                 }
               }}
               rows={Math.min(4, Math.max(1, chatMessage.split('\n').length))}
-              placeholder="Type message… (Enter to send)"
+              placeholder="Type message or click ✨ AI Auto-Reply… (Enter to send)"
               className="min-h-[42px] max-h-28 w-full resize-none rounded-2xl border border-slate-200 bg-white px-3.5 py-2 text-sm shadow-xs focus:outline-none focus:ring-2 focus:ring-green-500/40"
             />
           </div>
@@ -673,6 +851,109 @@ export const LeadWhatsAppWindow: React.FC<LeadWhatsAppWindowProps> = ({
           </a>
         </div>
       </div>
+
+      {/* 7. Connect Gemini AI Key Modal (In-Chat Popup) */}
+      {isAiKeyModalOpen && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in">
+          <div className="bg-white rounded-2xl shadow-2xl border border-purple-200 max-w-md w-full p-5 space-y-4 text-xs">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-purple-600 text-white flex items-center justify-center shadow-sm">
+                  <Bot className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-black text-sm text-slate-800">Google Gemini AI Auto-Reply</h3>
+                  <p className="text-[11px] text-slate-500">Powers 24/7 Riya Concierge for WhatsApp</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsAiKeyModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 p-1"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[11px] font-bold text-slate-700 block">
+                Paste Google Gemini API Key:
+              </label>
+              <div className="relative">
+                <input
+                  type="password"
+                  value={aiKeyInput}
+                  onChange={(e) => setAiKeyInput(e.target.value)}
+                  placeholder="AIzaSy..."
+                  className="w-full p-2.5 pr-8 border border-slate-300 rounded-xl bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-500 font-mono text-xs"
+                />
+                <Key className="w-4 h-4 text-slate-400 absolute right-2.5 top-3" />
+              </div>
+              <p className="text-[10px] text-slate-500 flex items-center justify-between pt-0.5">
+                <span>Free API key from Google AI Studio</span>
+                <a
+                  href="https://aistudio.google.com/app/apikey"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-purple-600 hover:text-purple-800 font-bold underline inline-flex items-center gap-0.5"
+                >
+                  <span>Get Free Key</span>
+                  <ExternalLink className="w-2.5 h-2.5" />
+                </a>
+              </p>
+            </div>
+
+            {testResult && (
+              <div
+                className={`p-2.5 rounded-xl border text-[11px] flex items-start gap-2 ${
+                  testResult.success
+                    ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                    : 'bg-rose-50 border-rose-200 text-rose-800'
+                }`}
+              >
+                {testResult.success ? (
+                  <Check className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                ) : (
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                )}
+                <div>
+                  <p className="font-bold">{testResult.success ? 'Connection Successful!' : 'Connection Error'}</p>
+                  <p className="text-[10px] mt-0.5">{testResult.message}</p>
+                </div>
+              </div>
+            )}
+
+            <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
+              <button
+                type="button"
+                onClick={handleTestKey}
+                disabled={isTestingKey || !aiKeyInput.trim()}
+                className="px-3 py-2 rounded-xl border border-purple-200 bg-purple-50 hover:bg-purple-100 text-purple-700 font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
+              >
+                {isTestingKey ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ShieldCheck className="w-3.5 h-3.5" />}
+                <span>{isTestingKey ? 'Testing…' : '⚡ Test Connection'}</span>
+              </button>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsAiKeyModalOpen(false)}
+                  className="px-3 py-2 rounded-xl text-slate-500 hover:text-slate-700 font-bold text-xs"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveKey}
+                  className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-md transition-colors cursor-pointer"
+                >
+                  Save & Activate
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -19,6 +19,7 @@ import {
   ExternalLink,
   RefreshCw,
   Lock,
+  Bot,
 } from 'lucide-react';
 import { ResaleLead, ResaleProperty, LeadStage, CallLog, ScheduledVisit } from '../../types/crm';
 import { 
@@ -36,6 +37,8 @@ import {
   sendLeadWhatsAppMessage, 
   type WhatsAppMessageItem 
 } from '../../services/whatsappService';
+import { generateGeminiRealEstateReply } from '../../services/geminiService';
+import { toast } from '../../utils/toast';
 
 interface LeadDetailModalProps {
   lead: ResaleLead | null;
@@ -91,6 +94,7 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
   const [waLoading, setWaLoading] = useState(false);
   const [waInputText, setWaInputText] = useState('');
   const [waSending, setWaSending] = useState(false);
+  const [waAiDrafting, setWaAiDrafting] = useState(false);
 
   const teamAgents = useMemo(() => {
     const list: string[] = [];
@@ -151,6 +155,49 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
     setWaInputText('');
     setWaSending(false);
     await loadWhatsAppChat();
+  };
+
+  const handleGenerateTabAiDraft = async (actionType: 'reply' | 'pitch' | 'site_visit' | 'pricing' | 'loan' = 'reply', prompt?: string) => {
+    if (!lead) return;
+    setWaAiDrafting(true);
+    try {
+      const lastClientMsg = prompt || [...waMessages].reverse().find(m => m.direction === 'inbound')?.text || '';
+      const effectiveMsg = lastClientMsg || (
+        actionType === 'pitch'
+          ? `Pitch properties in ${lead.preferredLocalities[0] || 'Nagpur'} for budget ${lead.budgetDisplay}`
+          : actionType === 'site_visit'
+          ? 'Invite for site visit'
+          : actionType === 'loan'
+          ? 'Bank loan info'
+          : `Inquiry regarding ${lead.intent}`
+      );
+
+      const res = await generateGeminiRealEstateReply({
+        message: effectiveMsg,
+        senderName: lead.name,
+        senderPhone: lead.whatsapp || lead.phone,
+        leadStage: lead.stage,
+        locality: lead.preferredLocalities.join(', ') || 'Nagpur',
+        budget: lead.budgetDisplay,
+        propertyCategory: lead.propertyCategory,
+        intent: lead.intent,
+        notes: lead.notes,
+        actionType,
+        recentHistory: waMessages.slice(-5).map(m => ({
+          sender: m.direction === 'inbound' ? 'lead' : 'agent',
+          text: m.text,
+        })),
+      });
+
+      if (res?.replyText) {
+        setWaInputText(res.replyText);
+        toast.success(res.source === 'gemini_api' ? '✨ Gemini AI draft generated!' : 'AI draft generated!');
+      }
+    } catch (err: any) {
+      toast.error('AI draft error: ' + (err.message || 'Failed'));
+    } finally {
+      setWaAiDrafting(false);
+    }
   };
 
   // Calculate matching properties
@@ -736,10 +783,109 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
                 </button>
               </div>
 
+              {/* WhatsApp Active Line Bar + Open Overlay Window */}
+              <div className="p-3 rounded-2xl bg-gradient-to-r from-emerald-50 via-teal-50 to-purple-50 border border-emerald-200/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-emerald-500 text-white flex items-center justify-center font-bold shadow-sm">
+                    <MessageSquare className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-slate-800 text-xs flex items-center gap-1.5">
+                      <span>Saraswati Nagri WhatsApp Gateway</span>
+                      <span className="px-1.5 py-0.2 bg-emerald-100 text-emerald-800 rounded font-black text-[9px]">LIVE</span>
+                    </p>
+                    <p className="text-[10px] text-slate-500">
+                      Line: <strong>+91 89560 40220</strong> • Lead: <strong>{lead.phone}</strong>
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 self-end sm:self-auto">
+                  {onOpenWhatsAppChat && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onClose();
+                        onOpenWhatsAppChat(lead);
+                      }}
+                      className="px-2.5 py-1 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-[10px] transition-colors flex items-center gap-1 cursor-pointer shadow-xs"
+                      title="Open full WhatsApp chat drawer"
+                    >
+                      <Bot className="w-3 h-3" />
+                      <span>Full WhatsApp Window →</span>
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={loadWhatsAppChat}
+                    disabled={waLoading}
+                    className="px-2.5 py-1 rounded-xl bg-white border border-emerald-200 text-emerald-800 font-bold text-[10px] hover:bg-emerald-50 transition-colors flex items-center gap-1 cursor-pointer"
+                  >
+                    <RefreshCw className={`w-3 h-3 ${waLoading ? 'animate-spin' : ''}`} />
+                    <span>Refresh</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Dedicated 1-Click AI Auto-Reply Bar */}
+              <div className="p-2.5 rounded-2xl bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200/70 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-purple-800 flex items-center gap-1">
+                    <Sparkles className="w-3 h-3 text-purple-600" />
+                    <span>AI Copilot Auto-Reply (Riya Concierge)</span>
+                  </span>
+                  <span className="text-[9px] text-purple-600 font-semibold">
+                    Personalized with {lead.name}'s budget & locality
+                  </span>
+                </div>
+
+                <div className="flex flex-wrap gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => handleGenerateTabAiDraft('reply')}
+                    disabled={waAiDrafting}
+                    className="px-3 py-1 rounded-full bg-purple-600 hover:bg-purple-700 text-white font-black text-[10px] shadow-xs flex items-center gap-1 cursor-pointer transition-all disabled:opacity-50"
+                  >
+                    {waAiDrafting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                    <span>{waAiDrafting ? 'Drafting…' : '✨ AI Auto-Reply'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleGenerateTabAiDraft('pitch')}
+                    disabled={waAiDrafting}
+                    className="px-2.5 py-1 rounded-full bg-white hover:bg-purple-50 border border-purple-200 text-purple-700 font-bold text-[10px] flex items-center gap-1 cursor-pointer transition-colors disabled:opacity-50"
+                  >
+                    <Building2 className="w-3 h-3 text-purple-600" />
+                    <span>🏡 AI Pitch</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleGenerateTabAiDraft('site_visit')}
+                    disabled={waAiDrafting}
+                    className="px-2.5 py-1 rounded-full bg-white hover:bg-purple-50 border border-purple-200 text-purple-700 font-bold text-[10px] flex items-center gap-1 cursor-pointer transition-colors disabled:opacity-50"
+                  >
+                    <Calendar className="w-3 h-3 text-purple-600" />
+                    <span>📅 Sunday Visit</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleGenerateTabAiDraft('loan')}
+                    disabled={waAiDrafting}
+                    className="px-2.5 py-1 rounded-full bg-white hover:bg-purple-50 border border-purple-200 text-purple-700 font-bold text-[10px] flex items-center gap-1 cursor-pointer transition-colors disabled:opacity-50"
+                  >
+                    <CheckCircle2 className="w-3 h-3 text-purple-600" />
+                    <span>💰 Loan Quote</span>
+                  </button>
+                </div>
+              </div>
+
               {/* Quick Reply Pitch Chips */}
               <div className="space-y-1">
                 <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-                  Quick High-Converting Resale Templates
+                  Standard Templates
                 </p>
                 <div className="flex flex-wrap gap-1.5">
                   {[
@@ -771,7 +917,7 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
                   <div className="p-8 text-center text-slate-400 text-xs space-y-1">
                     <MessageSquare className="w-8 h-8 text-slate-300 mx-auto" />
                     <p className="font-bold text-slate-600">No previous WhatsApp chat logged for this lead</p>
-                    <p className="text-[11px]">Type a message below or select a quick template to start chatting.</p>
+                    <p className="text-[11px]">Click <strong>✨ AI Auto-Reply</strong> above to draft a personalized opening.</p>
                   </div>
                 ) : (
                   waMessages.map((msg) => {
@@ -789,6 +935,21 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
                           }`}
                         >
                           <p className="whitespace-pre-wrap leading-relaxed">{msg.text}</p>
+                          
+                          {/* Inline AI reply for inbound message */}
+                          {!isOutbound && (
+                            <div className="pt-1 border-t border-slate-100 flex items-center justify-end">
+                              <button
+                                type="button"
+                                onClick={() => handleGenerateTabAiDraft('reply', msg.text)}
+                                className="text-[10px] font-bold text-purple-700 hover:text-purple-900 bg-purple-50 hover:bg-purple-100 px-2 py-0.5 rounded-full inline-flex items-center gap-1 cursor-pointer transition-colors"
+                              >
+                                <Sparkles className="w-3 h-3 text-purple-600" />
+                                <span>✨ AI Reply</span>
+                              </button>
+                            </div>
+                          )}
+
                           <div className={`flex items-center justify-end gap-1 text-[9px] ${
                             isOutbound ? 'text-emerald-100' : 'text-slate-400'
                           }`}>

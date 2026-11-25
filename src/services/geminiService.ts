@@ -11,6 +11,15 @@ export interface GeminiReplyRequest {
   projectName?: string;
   recentHistory?: Array<{ sender: 'lead' | 'agent'; text: string }>;
   isSeller?: boolean;
+  // Rich CRM lead context
+  budget?: string;
+  locality?: string;
+  propertyCategory?: string;
+  intent?: string;
+  bhkPreference?: string[];
+  notes?: string;
+  actionType?: 'reply' | 'pitch' | 'site_visit' | 'pricing' | 'loan';
+  customApiKey?: string;
 }
 
 export interface GeminiReplyResponse {
@@ -68,13 +77,19 @@ GUIDELINES FOR INCOMING MESSAGES:
  * Retrieve Gemini API Key from environment, window globals, or browser localStorage
  */
 export function getGeminiApiKey(): string {
-  // 1. Browser LocalStorage (set via CRM settings or WhatsApp Gateway modal)
+  // 1. Browser LocalStorage (set via CRM settings or WhatsApp chat modal)
   if (typeof window !== 'undefined' && window.localStorage) {
     const local = window.localStorage.getItem('crm:gemini_api_key') || window.localStorage.getItem('GEMINI_API_KEY');
     if (local && local.trim()) return local.trim();
   }
 
-  // 2. Vite import.meta.env
+  // 2. Browser SessionStorage
+  if (typeof window !== 'undefined' && window.sessionStorage) {
+    const sess = window.sessionStorage.getItem('crm:gemini_api_key') || window.sessionStorage.getItem('GEMINI_API_KEY');
+    if (sess && sess.trim()) return sess.trim();
+  }
+
+  // 3. Vite import.meta.env
   try {
     if (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_GEMINI_API_KEY) {
       const viteKey = (import.meta as any).env.VITE_GEMINI_API_KEY;
@@ -84,13 +99,13 @@ export function getGeminiApiKey(): string {
     // ignore
   }
 
-  // 3. Node process.env (Vercel Serverless / Node Webhook)
+  // 4. Node process.env (Vercel Serverless / Node Webhook)
   if (typeof process !== 'undefined') {
     const procKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
     if (procKey && procKey.trim() && !procKey.includes('your_gemini')) return procKey.trim();
   }
 
-  // 4. Injected Window globals
+  // 5. Injected Window globals
   if (typeof window !== 'undefined' && (window as any).__ENV__?.GEMINI_API_KEY) {
     const winKey = (window as any).__ENV__.GEMINI_API_KEY;
     if (winKey && winKey.trim()) return winKey.trim();
@@ -100,7 +115,14 @@ export function getGeminiApiKey(): string {
 }
 
 /**
- * Save user-entered Gemini API key into localStorage
+ * Check if a Gemini API key is configured
+ */
+export function isGeminiConfigured(): boolean {
+  return Boolean(getGeminiApiKey());
+}
+
+/**
+ * Save user-entered Gemini API key into localStorage & window globals
  */
 export function saveGeminiApiKey(key: string): void {
   if (typeof window !== 'undefined') {
@@ -146,9 +168,9 @@ export function clearGeminiApiKey(): void {
 /**
  * Call Google Gemini REST API with fast GA models
  */
-async function callGeminiApi(prompt: string, apiKey: string): Promise<string | null> {
-  // Support Gemini 2.0 Flash, 1.5 Flash, and 1.5 Pro (official GA v1beta endpoints)
-  const models = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'];
+async function callGeminiApi(prompt: string, apiKey: string): Promise<{ text: string; model: string } | null> {
+  // Support Gemini 2.5 Flash, 2.0 Flash, 1.5 Flash, and 1.5 Pro
+  const models = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'];
 
   for (const model of models) {
     try {
@@ -174,7 +196,7 @@ async function callGeminiApi(prompt: string, apiKey: string): Promise<string | n
         const data = await res.json();
         const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
         if (text && text.trim()) {
-          return text.trim();
+          return { text: text.trim(), model };
         }
       }
     } catch {
@@ -198,7 +220,7 @@ export async function testGeminiKey(testKey?: string): Promise<{ success: boolea
     };
   }
 
-  const models = ['gemini-2.0-flash', 'gemini-1.5-flash'];
+  const models = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
   for (const model of models) {
     try {
       const res = await fetch(
@@ -275,35 +297,33 @@ Rules:
 1. Return ONLY valid JSON with no markdown formatting or code fences.
 2. Structure:
 {
-  "title": string, // e.g. "Spacious 3 BHK Flat in Besa" or "NMRDA 1500 sq.ft Plot in Lonara"
+  "title": string,
   "category": "flat" | "plot" | "house_villa" | "commercial",
   "transactionType": "resale" | "rent",
-  "locality": string, // Nagpur locality e.g. Besa, Manish Nagar, Lonara, Koradi, Wardha Road, Hingna
-  "areaSqFt": number, // total square feet (digits only)
-  "price": string, // e.g. "₹55 Lakhs" or "₹25,000 / month"
-  "priceNumeric": number, // numeric in rupees e.g. 5500000
+  "locality": string,
+  "areaSqFt": number,
+  "price": string,
+  "priceNumeric": number,
   "ratePerSqFt": number | null,
-  "bhk": string | null, // e.g. "2 BHK", "3 BHK", "Plot"
+  "bhk": string | null,
   "facing": "East" | "North" | "North-East" | "West" | "South" | null,
   "furnishing": "Unfurnished" | "Semi-Furnished" | "Fully Furnished" | null,
-  "highlights": string[], // list of key features
+  "highlights": string[],
   "ownerName": string | null,
   "ownerPhone": string | null
 }`;
 
   try {
     const rawResult = await callGeminiApi(extractionPrompt, apiKey);
-    if (!rawResult) return null;
+    if (!rawResult?.text) return null;
 
-    // Clean JSON code fences if Gemini included them
-    const cleaned = rawResult
+    const cleaned = rawResult.text
       .replace(/^```json\s*/i, '')
       .replace(/^```\s*/i, '')
       .replace(/\s*```$/i, '')
       .trim();
 
-    const parsed = JSON.parse(cleaned);
-    return parsed;
+    return JSON.parse(cleaned);
   } catch (err) {
     console.warn('Gemini property extraction parsing error:', err);
     return null;
@@ -311,40 +331,54 @@ Rules:
 }
 
 /**
- * Smart fallback template generator when Gemini API key is absent or unreachable
+ * Smart fallback template generator when Gemini API key is absent or unreachable.
+ * Incorporates the lead's exact name, locality, budget, and requirement.
  */
 function getSmartFallbackReply(req: GeminiReplyRequest): string {
   const lower = (req.message || '').toLowerCase();
   const name = req.senderName || 'Sir/Ma\'am';
+  const loc = req.locality || 'Nagpur';
+  const budget = req.budget ? `(${req.budget})` : '';
+
+  if (req.actionType === 'pitch') {
+    if (req.propertyCategory === 'flat' || lower.includes('flat') || lower.includes('bhk')) {
+      return `Namaste ${name}! 🙏 Humare paas ${loc} mein prime ready-to-move flats available hain aapke target budget ${budget || '₹45L - ₹75L'} ke andar. Sabhi properties verified clear-title aur NMRDA/RERA approved hain. Kya main aapko photos aur floor plan share karoon? - सरस्वती नगरी रिसेल डेस्क`;
+    }
+    return `Namaste ${name}! 🙏 Saraswati Nagri 11 (${loc}) mein NMRDA Sanctioned & RL Released residential plots available hain starting ₹2,500/sq.ft se ${budget}. Immediate registry aur 80-90% SBI/HDFC bank loan uplabdh hai. Kya main layout map aur rate sheet WhatsApp karoon?`;
+  }
+
+  if (req.actionType === 'site_visit' || lower.includes('visit') || lower.includes('sunday') || lower.includes('site') || lower.includes('dekhna')) {
+    return `Namaste ${name}! 🙏 Hum har Sunday ko ${loc || 'Lonara & Besa'} ke liye free site visit organise karte hain AC company car pickup ke sath. Kya aap is Sunday morning 11:00 AM visit ke liye comfortable rahenge?`;
+  }
+
+  if (req.actionType === 'loan' || lower.includes('loan') || lower.includes('emi') || lower.includes('bank')) {
+    return `Namaste ${name}! 🙏 Saraswati Nagri 11 aur Resale Desk properties par SBI, HDFC aur Bank of Maharashtra se 80% se 90% tak home loan pre-sanctioned hai. 30 saal tak flexible tenure aur lowest interest rate available hai. Kya aap loan eligibility check karwana chahenge?`;
+  }
+
+  if (req.actionType === 'pricing' || lower.includes('price') || lower.includes('rate') || lower.includes('cost') || lower.includes('kitna')) {
+    return `Namaste ${name}! Saraswati Nagri 11 (Lonara) plotted layouts ₹2,500/sq.ft se start hote hain (1000 sq.ft plot ~ ₹25 Lakhs) with 14 prime amenities. Aur ${loc} corridor mein 2/3 BHK flats ₹45L - ₹75L ke range mein hain. Aapka preferred timeline kya hai?`;
+  }
 
   if (req.isSeller || lower.includes('sell') || lower.includes('demand') || lower.includes('carpet area') || lower.includes('sqft')) {
     return `Namaste ${name}! 🙏 Saraswati Nagri Resale Desk par aapki property listing receive ho gayi hai. Humari verification team details review karke verified buyers ke sath match karegi. Kya iske documents (RL/Sanction) ready hain?`;
   }
 
   if (lower.includes('plot') || lower.includes('land') || lower.includes('layout')) {
-    return `Namaste ${name}! 🙏 Saraswati Nagri 11 (Lonara, Koradi Road) aur Besa mein NMRDA Sanctioned & RL Approved plots available hain starting ₹2,500/sq.ft se, full bank loan ke sath. Aapka budget kya hai aur kitne sq.ft ka plot dekh rahe hain?`;
+    return `Namaste ${name}! 🙏 Saraswati Nagri 11 (Lonara, Koradi Road) aur ${loc} mein NMRDA Sanctioned & RL Approved plots available hain starting ₹2,500/sq.ft se, full bank loan ke sath. Aapka budget kya hai aur kitne sq.ft ka plot dekh rahe hain?`;
   }
 
   if (lower.includes('flat') || lower.includes('apartment') || lower.includes('bhk')) {
-    return `Namaste ${name}! 🙏 Manish Nagar aur Besa corridor mein ready-to-move 2 BHK & 3 BHK verified flats available hain (₹45L - ₹75L). Aapko immediate shifting ke liye chahiye ya investment ke liye?`;
+    return `Namaste ${name}! 🙏 ${loc} corridor mein ready-to-move 2 BHK & 3 BHK verified flats available hain (₹45L - ₹75L). Aapko immediate shifting ke liye chahiye ya investment ke liye?`;
   }
 
-  if (lower.includes('visit') || lower.includes('sunday') || lower.includes('site') || lower.includes('dekhna')) {
-    return `Namaste ${name}! 🙏 Hum har Sunday ko free site visit arrange karte hain AC car pickup ke sath. Kya aap is Sunday morning 11:00 AM ya afternoon 2:00 PM site visit ke liye comfortable hain?`;
-  }
-
-  if (lower.includes('price') || lower.includes('rate') || lower.includes('cost') || lower.includes('kitna')) {
-    return `Namaste ${name}! Saraswati Nagri plotted layouts ₹2,500/sq.ft se start hote hain (1000 sq.ft plot ~ ₹25 Lakhs) with 14 amenities & RERA guarantee. Aur resale flats ₹45 Lakhs onwards hain. Aapka preferred location kaunsa hai?`;
-  }
-
-  return `Namaste ${name}! 🙏 Saraswati Nagri & Resale Desk Nagpur mein aapka swagat hai. Main Riya hoon. Aap Nagpur mein residential plot ya flat dekh rahe hain, ya koi property sell karni hai?`;
+  return `Namaste ${name}! 🙏 Saraswati Nagri & Resale Desk Nagpur mein aapka swagat hai. Main Riya hoon. Aap ${loc} mein residential plot ya flat dekh rahe hain ${budget}, ya koi property sell karni hai?`;
 }
 
 /**
  * Generate Real Estate WhatsApp Reply using Google Gemini AI
  */
 export async function generateGeminiRealEstateReply(req: GeminiReplyRequest): Promise<GeminiReplyResponse> {
-  const apiKey = getGeminiApiKey();
+  const apiKey = (req.customApiKey || getGeminiApiKey()).trim();
 
   // 1. Try real Gemini API if key is available
   if (apiKey) {
@@ -353,27 +387,44 @@ export async function generateGeminiRealEstateReply(req: GeminiReplyRequest): Pr
         ? `\nRECENT CONVERSATION HISTORY:\n${req.recentHistory.map(h => `${h.sender === 'agent' ? 'Riya' : 'Client'}: ${h.text}`).join('\n')}`
         : '';
 
+      const actionPromptInstruction =
+        req.actionType === 'pitch'
+          ? 'TASK: Compose an attractive property pitch for this lead matching their budget and locality.'
+          : req.actionType === 'site_visit'
+          ? 'TASK: Invite the lead warmly for this Sunday\'s free site visit with company car pickup.'
+          : req.actionType === 'loan'
+          ? 'TASK: Explain 80-90% bank loan sanction from SBI/HDFC and invite them for loan paperwork verification.'
+          : req.actionType === 'pricing'
+          ? 'TASK: Explain property pricing (₹2,500/sqft for plots, ₹45L-₹75L for flats) and ask their timeline.'
+          : 'TASK: Compose Riya\'s helpful, polite, and persuasive WhatsApp reply in 2-3 lines of natural Hinglish.';
+
       const userPrompt = `${SYSTEM_INSTRUCTION}
 
-INCOMING WHATSAPP MESSAGE:
-Sender Name: ${req.senderName || 'Client'}
-Sender Phone: ${req.senderPhone || 'Unknown'}
-Lead Stage: ${req.leadStage || 'New Inquiry'}
-Project/Interest: ${req.projectName || 'Nagpur Real Estate'}
+LEAD PROFILE:
+- Client Name: ${req.senderName || 'Client'}
+- Phone: ${req.senderPhone || 'Unknown'}
+- Requirement / Intent: ${req.intent || 'Property Inquiry'}
+- Preferred Locality: ${req.locality || 'Nagpur'}
+- Target Budget: ${req.budget || 'Not specified'}
+- Property Category: ${req.propertyCategory || 'Residential'}
+- Lead Stage: ${req.leadStage || 'New Inquiry'}
+- CRM Notes: ${req.notes || 'None'}
 ${historyContext}
 
-Client's Latest Message: "${req.message}"
+INCOMING MESSAGE / CONTEXT:
+"${req.message}"
 
-Please compose Riya's helpful, polite, and persuasive WhatsApp reply in 2-3 lines of natural Hinglish.`;
+${actionPromptInstruction}
+Keep it within 2-4 sentences in natural Nagpur Hinglish (Hindi + English) with polite greeting and inviting call-to-action.`;
 
-      const aiText = await callGeminiApi(userPrompt, apiKey);
-      if (aiText) {
+      const aiRes = await callGeminiApi(userPrompt, apiKey);
+      if (aiRes?.text) {
         return {
-          replyText: aiText,
+          replyText: aiRes.text,
           intent: detectIntent(req.message),
-          confidence: 95,
+          confidence: 96,
           source: 'gemini_api',
-          modelUsed: 'gemini-flash',
+          modelUsed: aiRes.model,
         };
       }
     } catch (err) {
@@ -381,12 +432,13 @@ Please compose Riya's helpful, polite, and persuasive WhatsApp reply in 2-3 line
     }
   }
 
-  // 2. High-quality smart template fallback
+  // 2. High-quality smart template fallback (incorporates lead profile context)
   return {
     replyText: getSmartFallbackReply(req),
     intent: detectIntent(req.message),
-    confidence: 85,
+    confidence: 88,
     source: 'fallback_template',
+    modelUsed: 'smart_nagpur_engine',
   };
 }
 

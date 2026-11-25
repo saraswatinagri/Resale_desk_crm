@@ -588,6 +588,7 @@ export function App() {
       {/* Full in-CRM WhatsApp Window (Exact Saraswati Nagri CRM overlay) */}
       {whatsAppLead && (
         <LeadWhatsAppWindow
+          lead={whatsAppLead}
           leadName={whatsAppLead.name}
           leadId={whatsAppLead.id}
           phone={whatsAppLead.whatsapp || whatsAppLead.phone}
