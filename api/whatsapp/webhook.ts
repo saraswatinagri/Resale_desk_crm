@@ -109,6 +109,26 @@ export default async function handler(req: any, res: any) {
   }
 
   if (req.method === 'GET') {
+    const testMsg = req.query?.message || req.query?.text;
+    if (testMsg) {
+      const aiReply = await generateGeminiRealEstateReply({
+        message: String(testMsg),
+        senderName: req.query?.name || 'Test Client',
+        senderPhone: '9876543210',
+        leadStage: 'New Inquiry',
+      });
+      return res.status(200).json({
+        ok: true,
+        mode: 'webhook_test_reply',
+        input: testMsg,
+        reply: aiReply.replyText,
+        intent: aiReply.intent,
+        source: aiReply.source,
+        modelUsed: aiReply.modelUsed,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
     // Health check / webhook handshake
     return res.status(200).json({
       status: 'active',

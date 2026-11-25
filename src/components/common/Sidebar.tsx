@@ -146,13 +146,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
           })}
         </nav>
 
-        {/* WhatsApp & Gemini AI Gateway Quick Access */}
+        {/* WhatsApp Gateway Quick Access */}
         {onOpenWhatsAppConnect && (
           <div className={`mt-auto ${collapsed ? 'px-2 pb-2' : 'px-4 pb-3'}`}>
             <button
               type="button"
               onClick={onOpenWhatsAppConnect}
-              title="WhatsApp Gateway & Google Gemini AI Auto-Reply"
+              title="WhatsApp Gateway Connection"
               className={`w-full flex items-center rounded-xl bg-gradient-to-r from-emerald-950/80 to-teal-950/60 border border-emerald-500/40 text-emerald-300 hover:from-emerald-900/90 hover:to-teal-900/70 hover:text-white transition-all cursor-pointer font-bold text-xs ${
                 collapsed ? 'justify-center p-2.5' : 'gap-2.5 p-3'
               }`}
@@ -166,9 +166,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
               {!collapsed && (
                 <div className="flex-1 text-left flex items-center justify-between min-w-0">
-                  <span className="truncate">WhatsApp &amp; AI</span>
+                  <span className="truncate">WhatsApp Gateway</span>
                   <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 shrink-0">
-                    Gemini
+                    Active
                   </span>
                 </div>
               )}
@@ -248,7 +248,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </span>
               <MessageSquare className="w-5 h-5 text-emerald-600 shrink-0" />
             </div>
-            <span className="text-[10px] tracking-tight truncate max-w-full leading-tight font-bold text-emerald-700">WA &amp; AI</span>
+            <span className="text-[10px] tracking-tight truncate max-w-full leading-tight font-bold text-emerald-700">WhatsApp</span>
           </button>
         )}
       </nav>

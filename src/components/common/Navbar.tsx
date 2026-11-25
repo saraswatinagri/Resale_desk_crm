@@ -139,21 +139,20 @@ export const Navbar: React.FC<NavbarProps> = ({
           )}
         </button>
 
-        {/* WHATSAPP & GEMINI AI GATEWAY PILL */}
+        {/* WHATSAPP GATEWAY PILL */}
         {onOpenWhatsAppConnect && (
           <button
             type="button"
             onClick={onOpenWhatsAppConnect}
-            className="inline-flex items-center justify-center gap-1 sm:gap-1.5 rounded-full min-h-[30px] sm:min-h-[36px] px-2.5 sm:px-4 py-1 sm:py-1.5 font-bold text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-colors cursor-pointer shrink-0"
-            title="Open WhatsApp Gateway & Google Gemini AI Auto-Reply Console"
+            className="inline-flex items-center justify-center gap-1 sm:gap-1.5 rounded-full min-h-[30px] sm:min-h-[36px] px-2.5 sm:px-3.5 py-1 sm:py-1.5 font-bold text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-colors cursor-pointer shrink-0"
+            title="Open WhatsApp Gateway Connection"
           >
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-300 opacity-75" />
               <span className="relative inline-flex rounded-full h-2 w-2 bg-white" />
             </span>
             <MessageSquare className="w-3.5 h-3.5 text-white" />
-            <span className="hidden xs:inline">WhatsApp &amp; AI</span>
-            <span className="xs:hidden">WA AI</span>
+            <span>WhatsApp</span>
           </button>
         )}
 
@@ -207,7 +206,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     className="w-full text-left px-2 py-1.5 text-xs text-emerald-700 bg-emerald-50/60 hover:bg-emerald-100/70 rounded-lg flex items-center gap-2 cursor-pointer font-bold"
                   >
                     <MessageSquare className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>WhatsApp &amp; Gemini AI</span>
+                    <span>WhatsApp Gateway</span>
                   </button>
                 )}
                 {onSignOut && (
