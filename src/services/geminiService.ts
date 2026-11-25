@@ -103,11 +103,23 @@ export function getGeminiApiKey(): string {
  * Save user-entered Gemini API key into localStorage
  */
 export function saveGeminiApiKey(key: string): void {
-  if (typeof window !== 'undefined' && window.localStorage) {
-    if (key && key.trim()) {
-      window.localStorage.setItem('crm:gemini_api_key', key.trim());
+  if (typeof window !== 'undefined') {
+    const trimmed = (key || '').trim();
+    if (trimmed) {
+      if (window.localStorage) {
+        window.localStorage.setItem('crm:gemini_api_key', trimmed);
+        window.localStorage.setItem('GEMINI_API_KEY', trimmed);
+      }
+      if (window.sessionStorage) {
+        window.sessionStorage.setItem('crm:gemini_api_key', trimmed);
+      }
+      (window as any).__ENV__ = {
+        ...((window as any).__ENV__ || {}),
+        GEMINI_API_KEY: trimmed,
+        VITE_GEMINI_API_KEY: trimmed,
+      };
     } else {
-      window.localStorage.removeItem('crm:gemini_api_key');
+      clearGeminiApiKey();
     }
   }
 }
@@ -116,9 +128,18 @@ export function saveGeminiApiKey(key: string): void {
  * Remove saved Gemini API key from localStorage
  */
 export function clearGeminiApiKey(): void {
-  if (typeof window !== 'undefined' && window.localStorage) {
-    window.localStorage.removeItem('crm:gemini_api_key');
-    window.localStorage.removeItem('GEMINI_API_KEY');
+  if (typeof window !== 'undefined') {
+    if (window.localStorage) {
+      window.localStorage.removeItem('crm:gemini_api_key');
+      window.localStorage.removeItem('GEMINI_API_KEY');
+    }
+    if (window.sessionStorage) {
+      window.sessionStorage.removeItem('crm:gemini_api_key');
+    }
+    if ((window as any).__ENV__) {
+      delete (window as any).__ENV__.GEMINI_API_KEY;
+      delete (window as any).__ENV__.VITE_GEMINI_API_KEY;
+    }
   }
 }
 

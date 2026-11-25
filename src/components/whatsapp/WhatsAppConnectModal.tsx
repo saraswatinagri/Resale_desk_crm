@@ -587,6 +587,14 @@ export const WhatsAppConnectModal: React.FC<WhatsAppConnectModalProps> = ({
                     <span>{geminiTestResult.message}</span>
                   </div>
                 )}
+
+                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-[10px] text-slate-600 flex items-start gap-2">
+                  <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                  <div className="space-y-0.5">
+                    <p className="font-bold text-slate-800">Saved in your browser for immediate use on Vercel!</p>
+                    <p>When you click <strong>Save Key</strong>, the key is activated instantly on this device. For 24/7 background webhook replies when no browser is open, add <code>GEMINI_API_KEY</code> to your Vercel Project Environment Variables.</p>
+                  </div>
+                </div>
               </div>
 
               {/* Live Real Estate AI Simulator */}

@@ -424,6 +424,7 @@ export function App() {
           onOpenAddProperty={() => setIsAddPropertyOpen(true)}
           onOpenCalculator={() => setIsCalculatorOpen(true)}
           onOpenTemplates={() => setIsTemplatesOpen(true)}
+          onOpenWhatsAppConnect={() => setIsWhatsAppConnectOpen(true)}
           onRefreshSync={reloadData}
           isSyncing={isSyncing}
           isLiveSupabase={isLiveSupabase}
@@ -498,6 +499,7 @@ export function App() {
                 setIsAddPropertyOpen(true);
               }}
               onOpenWhatsAppPropertyInbox={() => setIsWhatsAppPropertyInboxOpen(true)}
+              onOpenWhatsAppConnect={() => setIsWhatsAppConnectOpen(true)}
               onViewProperty={setActiveProperty}
               onUpdatePropertyStatus={handleUpdatePropertyStatus}
               onDeleteProperty={handleDeleteProperty}

@@ -16,6 +16,7 @@ import {
   Layers,
   Ruler,
   Share2,
+  Bot,
 } from 'lucide-react';
 import { ResaleProperty, PropertyStatus, SaraswatiProject } from '../../types/crm';
 import { generateWhatsAppLink, formatPropertyForWhatsAppPost } from '../../utils/formatters';
@@ -28,6 +29,7 @@ interface PropertiesDeskProps {
   onOpenAddProperty: () => void;
   onOpenAddFromWhatsApp?: () => void;
   onOpenWhatsAppPropertyInbox?: () => void;
+  onOpenWhatsAppConnect?: () => void;
   onViewProperty: (prop: ResaleProperty) => void;
   onUpdatePropertyStatus: (propId: string, status: PropertyStatus) => void;
   onDeleteProperty: (propId: string) => void;
@@ -40,6 +42,7 @@ export const PropertiesDesk: React.FC<PropertiesDeskProps> = ({
   onOpenAddProperty,
   onOpenAddFromWhatsApp,
   onOpenWhatsAppPropertyInbox,
+  onOpenWhatsAppConnect,
   onViewProperty,
   onUpdatePropertyStatus,
   onDeleteProperty,
@@ -190,6 +193,19 @@ export const PropertiesDesk: React.FC<PropertiesDeskProps> = ({
               <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
               <span className="hidden xs:inline">Insert via WhatsApp</span>
               <span className="xs:hidden">WhatsApp Import</span>
+            </button>
+          )}
+
+          {onOpenWhatsAppConnect && (
+            <button
+              type="button"
+              onClick={onOpenWhatsAppConnect}
+              className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl bg-emerald-50 border border-emerald-300 hover:bg-emerald-100 text-emerald-800 font-bold text-xs shadow-2xs transition-all cursor-pointer"
+              title="Configure WhatsApp Gateway & Google Gemini AI Auto-Reply"
+            >
+              <Bot className="w-3.5 h-3.5 text-emerald-600" />
+              <span className="hidden sm:inline">WhatsApp &amp; AI</span>
+              <span className="sm:hidden">WA AI</span>
             </button>
           )}
 

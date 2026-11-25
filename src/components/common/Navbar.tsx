@@ -19,6 +19,7 @@ interface NavbarProps {
   onOpenAddProperty: () => void;
   onOpenCalculator: () => void;
   onOpenTemplates: () => void;
+  onOpenWhatsAppConnect?: () => void;
   onRefreshSync: () => void;
   isSyncing: boolean;
   isLiveSupabase: boolean;
@@ -34,6 +35,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenAddProperty,
   onOpenCalculator,
   onOpenTemplates,
+  onOpenWhatsAppConnect,
   onRefreshSync,
   isSyncing,
   isLiveSupabase,
@@ -137,6 +139,24 @@ export const Navbar: React.FC<NavbarProps> = ({
           )}
         </button>
 
+        {/* WHATSAPP & GEMINI AI GATEWAY PILL */}
+        {onOpenWhatsAppConnect && (
+          <button
+            type="button"
+            onClick={onOpenWhatsAppConnect}
+            className="inline-flex items-center justify-center gap-1 sm:gap-1.5 rounded-full min-h-[30px] sm:min-h-[36px] px-2.5 sm:px-4 py-1 sm:py-1.5 font-bold text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-colors cursor-pointer shrink-0"
+            title="Open WhatsApp Gateway & Google Gemini AI Auto-Reply Console"
+          >
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-300 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-white" />
+            </span>
+            <MessageSquare className="w-3.5 h-3.5 text-white" />
+            <span className="hidden xs:inline">WhatsApp &amp; AI</span>
+            <span className="xs:hidden">WA AI</span>
+          </button>
+        )}
+
         {/* Mobile Profile Trigger (Visible on small screens) */}
         <div className="relative lg:hidden shrink-0">
           <button
@@ -177,6 +197,19 @@ export const Navbar: React.FC<NavbarProps> = ({
                   <MessageSquare className="w-3.5 h-3.5 text-green-600" />
                   <span>WhatsApp Templates</span>
                 </button>
+                {onOpenWhatsAppConnect && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowMobileProfileMenu(false);
+                      onOpenWhatsAppConnect();
+                    }}
+                    className="w-full text-left px-2 py-1.5 text-xs text-emerald-700 bg-emerald-50/60 hover:bg-emerald-100/70 rounded-lg flex items-center gap-2 cursor-pointer font-bold"
+                  >
+                    <MessageSquare className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>WhatsApp &amp; Gemini AI</span>
+                  </button>
+                )}
                 {onSignOut && (
                   <button
                     type="button"
@@ -213,6 +246,20 @@ export const Navbar: React.FC<NavbarProps> = ({
           >
             <MessageSquare className="w-4 h-4 text-green-600" />
           </button>
+          {onOpenWhatsAppConnect && (
+            <button
+              type="button"
+              onClick={onOpenWhatsAppConnect}
+              title="WhatsApp Gateway & Google Gemini AI Console"
+              className="p-2 rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors cursor-pointer shadow-sm relative"
+            >
+              <span className="absolute -top-1 -right-1 flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-600" />
+              </span>
+              <MessageSquare className="w-4 h-4 text-emerald-600" />
+            </button>
+          )}
           <div
             title={`${currentUser.fullName} (${currentUser.role})`}
             className={`h-9 w-9 rounded-full flex items-center justify-center text-white font-bold text-xs shadow-sm border-2 border-white bg-gradient-to-tr ${currentUser.color} shrink-0`}
