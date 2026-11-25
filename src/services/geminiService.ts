@@ -65,23 +65,69 @@ GUIDELINES FOR INCOMING MESSAGES:
    - Greet warmly: "Namaste! 🙏 Main Saraswati Nagri Resale Desk se Riya hoon. Aap Nagpur mein residential plot ya flat dekh rahe hain, ya apni property sell karni hai?"`;
 
 /**
- * Retrieve Gemini API Key from environment or window globals
+ * Retrieve Gemini API Key from environment, window globals, or browser localStorage
  */
 export function getGeminiApiKey(): string {
-  const key =
-    (typeof process !== 'undefined' && (process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || process.env.GOOGLE_API_KEY)) ||
-    (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_GEMINI_API_KEY) ||
-    (typeof window !== 'undefined' && (window as any).__ENV__?.GEMINI_API_KEY) ||
-    '';
-  return key.trim();
+  // 1. Browser LocalStorage (set via CRM settings or WhatsApp Gateway modal)
+  if (typeof window !== 'undefined' && window.localStorage) {
+    const local = window.localStorage.getItem('crm:gemini_api_key') || window.localStorage.getItem('GEMINI_API_KEY');
+    if (local && local.trim()) return local.trim();
+  }
+
+  // 2. Vite import.meta.env
+  try {
+    if (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_GEMINI_API_KEY) {
+      const viteKey = (import.meta as any).env.VITE_GEMINI_API_KEY;
+      if (viteKey && viteKey.trim() && !viteKey.includes('your_gemini')) return viteKey.trim();
+    }
+  } catch {
+    // ignore
+  }
+
+  // 3. Node process.env (Vercel Serverless / Node Webhook)
+  if (typeof process !== 'undefined') {
+    const procKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+    if (procKey && procKey.trim() && !procKey.includes('your_gemini')) return procKey.trim();
+  }
+
+  // 4. Injected Window globals
+  if (typeof window !== 'undefined' && (window as any).__ENV__?.GEMINI_API_KEY) {
+    const winKey = (window as any).__ENV__.GEMINI_API_KEY;
+    if (winKey && winKey.trim()) return winKey.trim();
+  }
+
+  return '';
 }
 
 /**
- * Call Google Gemini REST API
+ * Save user-entered Gemini API key into localStorage
+ */
+export function saveGeminiApiKey(key: string): void {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    if (key && key.trim()) {
+      window.localStorage.setItem('crm:gemini_api_key', key.trim());
+    } else {
+      window.localStorage.removeItem('crm:gemini_api_key');
+    }
+  }
+}
+
+/**
+ * Remove saved Gemini API key from localStorage
+ */
+export function clearGeminiApiKey(): void {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    window.localStorage.removeItem('crm:gemini_api_key');
+    window.localStorage.removeItem('GEMINI_API_KEY');
+  }
+}
+
+/**
+ * Call Google Gemini REST API with fast GA models
  */
 async function callGeminiApi(prompt: string, apiKey: string): Promise<string | null> {
-  // Support Gemini 2.5 Flash, 2.0 Flash, and 1.5 Flash
-  const models = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+  // Support Gemini 2.0 Flash, 1.5 Flash, and 1.5 Pro (official GA v1beta endpoints)
+  const models = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'];
 
   for (const model of models) {
     try {
@@ -98,7 +144,7 @@ async function callGeminiApi(prompt: string, apiKey: string): Promise<string | n
           ],
           generationConfig: {
             temperature: 0.65,
-            maxOutputTokens: 250,
+            maxOutputTokens: 350,
           }
         }),
       });
@@ -117,6 +163,130 @@ async function callGeminiApi(prompt: string, apiKey: string): Promise<string | n
   }
 
   return null;
+}
+
+/**
+ * Test connectivity with a given or saved Gemini API Key
+ */
+export async function testGeminiKey(testKey?: string): Promise<{ success: boolean; modelUsed?: string; message: string }> {
+  const keyToUse = (testKey || getGeminiApiKey()).trim();
+  if (!keyToUse) {
+    return {
+      success: false,
+      message: 'No Gemini API key found. Please provide an API key.',
+    };
+  }
+
+  const models = ['gemini-2.0-flash', 'gemini-1.5-flash'];
+  for (const model of models) {
+    try {
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${keyToUse}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ role: 'user', parts: [{ text: 'Respond with exactly "OK" if online.' }] }],
+            generationConfig: { maxOutputTokens: 10 }
+          }),
+        }
+      );
+
+      if (res.ok) {
+        const data = await res.json();
+        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+        return {
+          success: true,
+          modelUsed: model,
+          message: text ? `Connected successfully (${model}): "${text}"` : `Connected successfully using ${model}`,
+        };
+      } else {
+        const errData = await res.json().catch(() => null);
+        const errMsg = errData?.error?.message || `HTTP ${res.status}`;
+        if (model === models[models.length - 1]) {
+          return { success: false, message: `Gemini API Error: ${errMsg}` };
+        }
+      }
+    } catch (err: any) {
+      if (model === models[models.length - 1]) {
+        return { success: false, message: `Network error connecting to Gemini API: ${err.message || 'Failed to fetch'}` };
+      }
+    }
+  }
+
+  return { success: false, message: 'Could not connect to Gemini API.' };
+}
+
+/**
+ * Extract structured property details from an unstructured WhatsApp message using Gemini AI
+ */
+export async function extractPropertyDetailsWithGemini(
+  rawText: string,
+  customApiKey?: string
+): Promise<{
+  title?: string;
+  category?: 'flat' | 'plot' | 'house_villa' | 'commercial';
+  transactionType?: 'resale' | 'rent';
+  locality?: string;
+  areaSqFt?: number;
+  price?: string;
+  priceNumeric?: number;
+  ratePerSqFt?: number;
+  bhk?: string;
+  facing?: 'East' | 'North' | 'North-East' | 'West' | 'South';
+  furnishing?: 'Unfurnished' | 'Semi-Furnished' | 'Fully Furnished';
+  highlights?: string[];
+  ownerName?: string;
+  ownerPhone?: string;
+} | null> {
+  const apiKey = (customApiKey || getGeminiApiKey()).trim();
+  if (!apiKey || !rawText || rawText.trim().length < 15) return null;
+
+  const extractionPrompt = `You are an expert real estate data parser for Nagpur, Maharashtra.
+Analyze the following unstructured WhatsApp message received from an owner or broker, and extract all property listing fields into pure JSON.
+
+Message to parse:
+"""
+${rawText}
+"""
+
+Rules:
+1. Return ONLY valid JSON with no markdown formatting or code fences.
+2. Structure:
+{
+  "title": string, // e.g. "Spacious 3 BHK Flat in Besa" or "NMRDA 1500 sq.ft Plot in Lonara"
+  "category": "flat" | "plot" | "house_villa" | "commercial",
+  "transactionType": "resale" | "rent",
+  "locality": string, // Nagpur locality e.g. Besa, Manish Nagar, Lonara, Koradi, Wardha Road, Hingna
+  "areaSqFt": number, // total square feet (digits only)
+  "price": string, // e.g. "₹55 Lakhs" or "₹25,000 / month"
+  "priceNumeric": number, // numeric in rupees e.g. 5500000
+  "ratePerSqFt": number | null,
+  "bhk": string | null, // e.g. "2 BHK", "3 BHK", "Plot"
+  "facing": "East" | "North" | "North-East" | "West" | "South" | null,
+  "furnishing": "Unfurnished" | "Semi-Furnished" | "Fully Furnished" | null,
+  "highlights": string[], // list of key features
+  "ownerName": string | null,
+  "ownerPhone": string | null
+}`;
+
+  try {
+    const rawResult = await callGeminiApi(extractionPrompt, apiKey);
+    if (!rawResult) return null;
+
+    // Clean JSON code fences if Gemini included them
+    const cleaned = rawResult
+      .replace(/^```json\s*/i, '')
+      .replace(/^```\s*/i, '')
+      .replace(/\s*```$/i, '')
+      .trim();
+
+    const parsed = JSON.parse(cleaned);
+    return parsed;
+  } catch (err) {
+    console.warn('Gemini property extraction parsing error:', err);
+    return null;
+  }
 }
 
 /**

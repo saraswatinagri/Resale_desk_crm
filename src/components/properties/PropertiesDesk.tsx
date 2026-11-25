@@ -18,7 +18,8 @@ import {
   Share2,
 } from 'lucide-react';
 import { ResaleProperty, PropertyStatus, SaraswatiProject } from '../../types/crm';
-import { generateWhatsAppLink } from '../../utils/formatters';
+import { generateWhatsAppLink, formatPropertyForWhatsAppPost } from '../../utils/formatters';
+import { toast } from '../../utils/toast';
 import { NAGPUR_LOCALITIES } from '../../data/constants';
 
 interface PropertiesDeskProps {
@@ -50,6 +51,19 @@ export const PropertiesDesk: React.FC<PropertiesDeskProps> = ({
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [transactionFilter, setTransactionFilter] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [copiedPropId, setCopiedPropId] = useState<string | null>(null);
+
+  const handleSharePropertyWhatsApp = (prop: ResaleProperty, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    const formatted = formatPropertyForWhatsAppPost(prop);
+    navigator.clipboard.writeText(formatted);
+    setCopiedPropId(prop.id);
+    toast.success(`Copied "${prop.title}" WhatsApp brochure! Opening WhatsApp...`);
+    setTimeout(() => setCopiedPropId(null), 3000);
+
+    const shareUrl = `https://wa.me/?text=${encodeURIComponent(formatted)}`;
+    window.open(shareUrl, '_blank', 'noopener,noreferrer');
+  };
 
   const filteredProperties = useMemo(() => {
     return properties.filter((prop) => {
@@ -439,9 +453,13 @@ export const PropertiesDesk: React.FC<PropertiesDeskProps> = ({
                       </button>
                       <button
                         type="button"
-                        onClick={() => onViewProperty(prop)}
-                        title="Post / Share Property on WhatsApp"
-                        className="p-1.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100 cursor-pointer"
+                        onClick={(e) => handleSharePropertyWhatsApp(prop, e)}
+                        title="Copy & Share Property on WhatsApp"
+                        className={`p-1.5 rounded-lg border transition-all cursor-pointer ${
+                          copiedPropId === prop.id
+                            ? 'bg-emerald-600 border-emerald-600 text-white shadow-xs'
+                            : 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100'
+                        }`}
                       >
                         <Share2 className="w-3.5 h-3.5" />
                       </button>
@@ -557,9 +575,13 @@ export const PropertiesDesk: React.FC<PropertiesDeskProps> = ({
                           </button>
                           <button
                             type="button"
-                            onClick={() => onViewProperty(prop)}
-                            className="p-1.5 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer"
-                            title="Share on WhatsApp"
+                            onClick={(e) => handleSharePropertyWhatsApp(prop, e)}
+                            className={`p-1.5 rounded-lg border transition-all cursor-pointer ${
+                              copiedPropId === prop.id
+                                ? 'bg-emerald-600 border-emerald-600 text-white shadow-xs'
+                                : 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100'
+                            }`}
+                            title="Copy & Share on WhatsApp"
                           >
                             <Share2 className="w-3.5 h-3.5" />
                           </button>

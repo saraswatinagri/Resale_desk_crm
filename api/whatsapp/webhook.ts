@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { parseWhatsAppPropertyMessage } from '../../src/utils/whatsappPropertyParser';
-import { generateGeminiRealEstateReply } from '../../src/services/geminiService';
+import { generateGeminiRealEstateReply, extractPropertyDetailsWithGemini } from '../../src/services/geminiService';
 
 const supabaseUrl =
   process.env.VITE_SUPABASE_URL ||
@@ -230,18 +230,48 @@ export default async function handler(req: any, res: any) {
 
         // B. Intelligent Property Parser: check if message contains resale property details
         const parsed = parseWhatsAppPropertyMessage(text);
-        const hasPropertyDetails =
+        let fields = { ...parsed.extractedFields };
+        let hasPropertyDetails =
           parsed.confidenceScore >= 20 &&
-          (parsed.extractedFields.locality ||
-            parsed.extractedFields.category ||
-            parsed.extractedFields.areaSqFt ||
-            parsed.extractedFields.priceNumeric);
+          (fields.locality ||
+            fields.category ||
+            fields.areaSqFt ||
+            fields.priceNumeric);
+
+        // Fallback to Gemini AI property extraction if regex had low confidence but text looks like real estate
+        const lowerText = text.toLowerCase();
+        const seemsLikePropertyPost =
+          lowerText.includes('bhk') ||
+          lowerText.includes('sqft') ||
+          lowerText.includes('sq.ft') ||
+          lowerText.includes('plot') ||
+          lowerText.includes('flat') ||
+          lowerText.includes('bechna') ||
+          lowerText.includes('demand') ||
+          lowerText.includes('resale') ||
+          lowerText.includes('rate:');
+
+        if (!hasPropertyDetails && seemsLikePropertyPost && text.length > 25) {
+          try {
+            const aiFields = await extractPropertyDetailsWithGemini(text);
+            if (aiFields && (aiFields.locality || aiFields.areaSqFt || aiFields.price || aiFields.priceNumeric)) {
+              fields = {
+                ...fields,
+                ...aiFields,
+                category: aiFields.category || fields.category,
+                transactionType: aiFields.transactionType || fields.transactionType,
+              };
+              hasPropertyDetails = true;
+            }
+          } catch (geminiExtractErr) {
+            console.warn('Gemini property extraction error:', geminiExtractErr);
+          }
+        }
 
         let registeredCode: string | null = null;
         let registeredTitle: string | null = null;
 
         if (hasPropertyDetails) {
-          const fields = parsed.extractedFields;
           registeredCode = `NP-${Math.floor(1000 + Math.random() * 9000)}`;
           registeredTitle =
             fields.title ||

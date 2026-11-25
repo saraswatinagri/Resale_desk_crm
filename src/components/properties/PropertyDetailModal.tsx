@@ -22,7 +22,8 @@ import { ResaleProperty, ResaleLead, PropertyStatus } from '../../types/crm';
 import { 
   formatIndianCurrency, 
   generateWhatsAppLink,
-  buildPropertyPitchMessage 
+  buildPropertyPitchMessage,
+  formatPropertyForWhatsAppPost
 } from '../../utils/formatters';
 import { getMatchingLeadsForProperty } from '../../utils/matcher';
 import { sendLeadWhatsAppMessage } from '../../services/whatsappService';
@@ -66,13 +67,44 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
   const targetName = selectedLead ? selectedLead.name : (customName.trim() || 'Sir/Madam');
 
   const buildCustomPitch = () => {
-    if (pitchLanguage === 'Hindi') {
-      return `नमस्ते ${targetName} जी! 🙏\n\nसरस्वती नगरी / नागपुर प्रॉपर्टीज रिसेल डेस्क से आपके लिए एक सत्यापित प्रॉपर्टी का विवरण:\n\n🏡 *${property.title}*\n📍 *लोकेशन:* ${property.locality}, ${property.corridor}, नागपुर\n💰 *कीमत:* ${property.price} (${property.ratePerSqFt ? `₹${property.ratePerSqFt}/sq.ft` : ''})\n📏 *साइज:* ${property.areaSqFt} sq.ft (${property.bhk || 'Plot'})\n🧭 *फेसिंग:* ${property.facing || 'East'}\n✅ *स्वीकृतियां:* ${property.legalStatus.nmrdaApproved ? 'NMRDA Approved, ' : ''}${property.legalStatus.rlAvailable ? 'RL Available, ' : ''}${property.legalStatus.clearTitle ? 'क्लियर 7/12 टाइटल' : ''}\n\nक्या आप इस वीकेंड साइट विजिट प्लान करना चाहेंगे?\n\n- नागपुर प्रॉपर्टीज & सरस्वती नगरी रिसेल डेस्क\n📞 कॉल / हेल्पलाइन: +91 89560 40220`;
-    } else if (pitchLanguage === 'Marathi') {
-      return `नमस्कार ${targetName} जी! 🙏\n\nसरस्वती नगरी / नागपूर प्रॉपर्टीज रिसेल डेस्कवरून आपल्यासाठी निवडक रिसेल प्रॉपर्टी:\n\n🏡 *${property.title}*\n📍 *पत्ता:* ${property.locality}, ${property.corridor}, नागपूर\n💰 *किंमत:* ${property.price}\n📏 *क्षेत्रफळ:* ${property.areaSqFt} sq.ft (${property.bhk || 'Plot'})\n✅ *मंजूरी:* ${property.legalStatus.nmrdaApproved ? 'NMRDA मंजूर, ' : ''}${property.legalStatus.rlAvailable ? 'RL उपलब्ध, ' : ''}क्लिअर टायटल\n\nप्रत्यक्ष पाहणीसाठी (Site Visit) केव्हा वेळ होईल?\n\n- सरस्वती नगरी रिसेल डेस्क\n📞 संपर्क: +91 89560 40220`;
-    } else {
-      return `Hello ${targetName},\n\nGreetings from Saraswati Nagri & Nagpur Properties Resale Desk. Review this verified resale property matching your preferences:\n\n🏡 *${property.title}*\n📍 *Location:* ${property.locality}, ${property.corridor}, Nagpur\n💰 *Price:* ${property.price}\n📏 *Area:* ${property.areaSqFt} sq.ft (${property.bhk || 'Plot'})\n🧭 *Facing:* ${property.facing || 'East'}\n✅ *Legal:* ${property.legalStatus.nmrdaApproved ? 'NMRDA Sanctioned, ' : ''}${property.legalStatus.rlAvailable ? 'RL in hand, ' : ''}Clear Title\n\nWould you like to schedule a private site visit this weekend?\n\n- Resale Desk | Saraswati Nagri\n📞 Contact: +91 89560 40220`;
+    if (pitchLanguage === 'English') {
+      return formatPropertyForWhatsAppPost(property, {
+        leadName: targetName,
+        agentName: 'Saraswati Nagri Executive',
+        agentPhone: '8956040220',
+      });
     }
+
+    if (pitchLanguage === 'Marathi') {
+      const code = property.propertyCode || `NP-${property.id.slice(0, 4).toUpperCase()}`;
+      return `नमस्कार ${targetName} जी! 🙏
+
+🌟 *सरस्वती नगरी & नागपूर प्रॉपर्टीज रिसेल डेस्क*
+━━━━━━━━━━━━━━━━━━━━
+🏡 *${property.title}*
+🔖 *प्रॉपर्टी कोड:* ${code}
+📍 *पत्ता:* ${property.locality}, ${property.corridor}, नागपूर
+💰 *किंमत:* ${property.price} ${property.ratePerSqFt ? `(₹${property.ratePerSqFt}/sq.ft)` : ''}
+📏 *क्षेत्रफळ:* ${property.areaSqFt} sq.ft (${property.bhk || 'Plot'})
+🧭 *दिशा:* ${property.facing || 'East'} फेसिंग (वास्तुशास्त्रानुसार)
+
+🛡️ *कायदेशीर मंजुऱ्या:*
+${property.legalStatus.nmrdaApproved ? '✅ NMRDA / NIT मंजूर लेआउट\n' : ''}${property.legalStatus.rlAvailable ? '✅ RL (Release Letter) उपलब्ध\n' : ''}${property.legalStatus.clearTitle ? '✅ 7/12 क्लिअर टायटल दस्तऐवज\n' : ''}${property.legalStatus.loanEligible ? '✅ राष्ट्रीयकृत बँकेकडून 80-90% गृहकर्ज उपलब्ध (SBI, HDFC)\n' : ''}
+━━━━━━━━━━━━━━━━━━━━
+🚗 *कंपनी गाडीने मोफत साईट व्हिजिट उपलब्ध!*
+प्रत्यक्ष पाहणीसाठी (Site Visit) आपण या रविवारी उपलब्ध आहात का?
+
+📞 *थेट संपर्क:*
+📱 WhatsApp / Call: +91 89560 40220 / +91 94949 42894
+🏢 सरस्वती नगरी ग्रुप, नागपूर`;
+    }
+
+    // Default: Hindi / Hinglish (standard high-converting)
+    return formatPropertyForWhatsAppPost(property, {
+      leadName: targetName,
+      agentName: 'नागपुर रिसेल डेस्क',
+      agentPhone: '8956040220',
+    });
   };
 
   const handleSendDirectWhatsApp = async () => {
@@ -103,7 +135,7 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
     }
   };
 
-  const brochureText = `🏡 *EXCLUSIVE PROPERTY FOR SALE / RESALE*\n*Nagpur Properties & Saraswati Nagri Resale Desk*\n\n📍 *Title:* ${property.title}\n🗺️ *Location:* ${property.locality}, ${property.corridor}, Nagpur\n💰 *Price:* ${property.price} (${property.ratePerSqFt ? `₹${property.ratePerSqFt}/sq.ft` : ''})\n📏 *Area:* ${property.areaSqFt} sq.ft (${property.bhk || 'Plot'})\n🧭 *Facing:* ${property.facing || 'East'}\n🛋️ *Furnishing:* ${property.furnishing || 'Semi-Furnished'}\n\n✅ *LEGAL SANCTIONS & VERIFICATION:*\n${property.legalStatus.nmrdaApproved ? '• NMRDA Sanctioned Layout\n' : ''}${property.legalStatus.rlAvailable ? '• Release Letter (RL) in hand\n' : ''}${property.legalStatus.reraRegistered ? `• MahaRERA Registered: ${property.legalStatus.reraNumber || 'Verified'}\n` : ''}${property.legalStatus.clearTitle ? '• 7/12 & Khasra Clear Title\n' : ''}${property.legalStatus.loanEligible ? '• SBI & Nationalized Bank Loans Approved\n' : ''}\n🌟 *Highlights:*\n${property.highlights.map(h => `• ${h}`).join('\n')}\n\n📞 For Private Site Visit & Negotiation:\nCall / WhatsApp: 8275437826 / 8956040220 (Resale Desk)`;
+  const brochureText = formatPropertyForWhatsAppPost(property);
 
   const handleCopyBrochure = () => {
     navigator.clipboard.writeText(brochureText);
