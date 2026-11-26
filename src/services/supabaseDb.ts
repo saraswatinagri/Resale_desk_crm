@@ -159,6 +159,9 @@ function computePriorityFromRow(row: Record<string, unknown>): LeadPriority {
   return 'cold';
 }
 
+export const RESALE_HEAD_NAME = 'Sagar Madhukar kamble';
+export const RESALE_HEAD_PROFILE_ID = 'a342167a-c988-49cc-b304-29aed3fc81b4';
+
 function mapTimelineFromUrgency(urgency?: string | null): ResaleLead['timeline'] {
   const u = (urgency || '').toLowerCase();
   if (u.startsWith('immediate')) return 'immediate';
@@ -214,12 +217,18 @@ function mapLeadRow(
         feedback: asStr(item.content),
       });
     } else if (itemType === 'call' || itemType === 'note' || itemType === 'whatsapp') {
-      const outcomeRaw = asStr(item.outcome, 'Interested') as CallLog['outcome'];
+      const outcomeRawStr = asStr(item.outcome, 'Interested');
+      const content = asStr(item.content);
+      // Skip administrative reassignment notes from client call outcomes so actual customer outcomes show
+      if (itemType === 'note' && (outcomeRawStr === 'Reassigned' || content.toLowerCase().includes('owner changed'))) {
+        continue;
+      }
+      const outcomeRaw = outcomeRawStr as CallLog['outcome'];
       callLogs.push({
         id: asStr(item.id),
         date: asStr(item.created_at, new Date().toISOString()),
         caller: actor,
-        notes: asStr(item.content, outcomeRaw || 'Logged activity'),
+        notes: content || outcomeRawStr || 'Logged activity',
         outcome: outcomeRaw,
       });
     }
@@ -228,6 +237,11 @@ function mapLeadRow(
   const rawStatus = asStr(row.status, 'New Inquiry');
   const propertyType = asStr(row.property_type, 'Wants to Buy a Property (Resale)');
   const plotInterest = asStr(row.plot_interest);
+
+  // All Resale Desk leads are exclusively assigned to Sagar Sir (Sagar Madhukar kamble)
+  const isResale = isResaleIntent(propertyType);
+  const finalAssignedTo = isResale ? RESALE_HEAD_NAME : assignedName;
+  const finalAssignedToId = isResale ? RESALE_HEAD_PROFILE_ID : assignedToId;
 
   return {
     id,
@@ -252,8 +266,8 @@ function mapLeadRow(
     priority: computePriorityFromRow(row),
     stage: dbStatusToLeadStage(rawStatus),
     rawStatus,
-    assignedTo: assignedName,
-    assignedToId,
+    assignedTo: finalAssignedTo,
+    assignedToId: finalAssignedToId,
     nextFollowUp: asStr(row.follow_up_date) || undefined,
     lastContactedAt: asStr(row.last_contacted_at) || null,
     interactionCount: asNum(row.interaction_count) || callLogs.length,
@@ -363,6 +377,10 @@ export async function createLeadInSupabase(
   const scoreLabel =
     leadData.priority === 'hot' ? 'Hot' : leadData.priority === 'warm' ? 'Warm' : 'Cold';
 
+  const isResale = isResaleIntent(leadData.intent);
+  const targetAssignedToId = isResale ? RESALE_HEAD_PROFILE_ID : (matchedAgent?.id || currentUserId || null);
+  const targetCreatedBy = currentUserId || RESALE_HEAD_PROFILE_ID;
+
   const payload = {
     name: leadData.name.trim(),
     phone: cleanPhone,
@@ -381,8 +399,8 @@ export async function createLeadInSupabase(
     status: leadStageToDbStatus(leadData.stage || 'new'),
     urgency: urgencyMap[leadData.timeline] || 'Not Specified',
     score_label: scoreLabel,
-    assigned_to: matchedAgent?.id || currentUserId || null,
-    created_by: currentUserId || null,
+    assigned_to: targetAssignedToId,
+    created_by: targetCreatedBy,
     follow_up_date: leadData.nextFollowUp || null,
     notes: leadData.notes || null,
   };

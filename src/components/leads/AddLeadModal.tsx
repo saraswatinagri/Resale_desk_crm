@@ -149,8 +149,8 @@ export const AddLeadModal: React.FC<AddLeadModalProps> = ({
         source: storedSource as LeadSource,
         priority: 'warm',
         stage: 'new',
-        assignedTo: selectedAgent?.name || agentOptions[0]?.name || 'Unassigned',
-        assignedToId: selectedAgent?.id || null,
+        assignedTo: 'Sagar Madhukar kamble',
+        assignedToId: 'a342167a-c988-49cc-b304-29aed3fc81b4',
         nextFollowUp: !isResale && followUpDate ? followUpDate : undefined,
         notes: notes.trim(),
         interestedPropertyIds: [],
@@ -468,19 +468,16 @@ export const AddLeadModal: React.FC<AddLeadModalProps> = ({
               )}
 
               <div>
-                <label className={lbl}>Assigned To</label>
-                <select
-                  value={assignedToId}
-                  onChange={(e) => setAssignedToId(e.target.value)}
-                  className={sel}
-                >
-                  <option value="">Auto / Default Executive</option>
-                  {agentOptions.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.name}
-                    </option>
-                  ))}
-                </select>
+                <label className={lbl}>Assigned Incharge</label>
+                <div className="flex items-center gap-2.5 p-2.5 rounded-xl bg-purple-50/70 border border-purple-200/80">
+                  <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-purple-600 to-indigo-600 text-white flex items-center justify-center font-bold text-xs shrink-0">
+                    S
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-black text-slate-800">Sagar Madhukar kamble</p>
+                    <p className="text-[10px] text-purple-700 font-bold">Resale Desk Head · All Resale Desk leads assigned exclusively</p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

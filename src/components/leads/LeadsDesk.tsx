@@ -177,14 +177,7 @@ export const LeadsDesk: React.FC<LeadsDeskProps> = ({
 
   const todayStr = new Date().toISOString().slice(0, 10);
 
-  const agentOptions = useMemo(() => {
-    const names = new Set<string>();
-    profiles.forEach((p) => names.add(p.fullName));
-    leads.forEach((l) => {
-      if (l.assignedTo) names.add(l.assignedTo);
-    });
-    return Array.from(names).sort();
-  }, [profiles, leads]);
+  const agentOptions = ['Sagar Madhukar kamble'];
 
   const filteredLeads = useMemo(() => {
     return leads.filter((lead) => {
@@ -340,7 +333,7 @@ export const LeadsDesk: React.FC<LeadsDeskProps> = ({
             🔥 Hot
           </button>
 
-          {/* Sales Team Picker */}
+          {/* Sales Team Picker - Exclusively Sagar Madhukar kamble for Resale Desk */}
           <select
             value={agentFilter}
             onChange={(e) => setAgentFilter(e.target.value)}
@@ -350,12 +343,8 @@ export const LeadsDesk: React.FC<LeadsDeskProps> = ({
                 : 'text-slate-600 border-slate-200 bg-white'
             }`}
           >
-            <option value="All" className="text-slate-800 bg-white">Sales team (All)</option>
-            {agentOptions.map((a) => (
-              <option key={a} value={a} className="text-slate-800 bg-white">
-                {a}
-              </option>
-            ))}
+            <option value="All" className="text-slate-800 bg-white">Resale Desk (Sagar Sir · All 300+)</option>
+            <option value="Sagar Madhukar kamble" className="text-slate-800 bg-white">Sagar Madhukar kamble (Incharge)</option>
           </select>
 
           {activeFiltersCount > 0 && (
@@ -629,17 +618,12 @@ export const LeadsDesk: React.FC<LeadsDeskProps> = ({
                     {/* Middle Gray Info Strip */}
                     <div className="relative z-10 flex items-center justify-between bg-slate-50 p-2 md:p-2.5 rounded-lg md:rounded-xl border border-slate-100 group-hover:bg-purple-50/30 transition-colors">
                       <div className="flex items-center gap-1.5 min-w-0">
-                        <UserCircle
-                          className={`w-4 h-4 shrink-0 ${
-                            lead.assignedTo === 'Unassigned' ? 'text-amber-500' : 'text-slate-400'
-                          }`}
-                        />
-                        <span
-                          className={`text-[10px] font-bold truncate ${
-                            lead.assignedTo === 'Unassigned' ? 'text-amber-600' : 'text-slate-600'
-                          }`}
-                        >
-                          {lead.assignedTo}
+                        <UserCircle className="w-4 h-4 shrink-0 text-purple-600" />
+                        <span className="text-[10px] font-black text-slate-700 truncate flex items-center gap-1">
+                          Sagar Madhukar kamble
+                          <span className="text-[8px] font-black uppercase text-purple-700 bg-purple-100/70 border border-purple-200/80 px-1 py-0.2 rounded">
+                            Resale Incharge
+                          </span>
                         </span>
                       </div>
 
@@ -886,7 +870,9 @@ export const LeadsDesk: React.FC<LeadsDeskProps> = ({
                           </button>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-slate-600 font-semibold">{lead.assignedTo}</td>
+                      <td className="px-4 py-3 text-slate-700 font-bold whitespace-nowrap">
+                        Sagar Madhukar kamble <span className="text-[9px] text-purple-600 font-black ml-1">(Incharge)</span>
+                      </td>
                       <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-1.5">
                           {(() => {

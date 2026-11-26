@@ -27,6 +27,7 @@ import {
   type WhatsAppMessageItem,
   type WhatsAppSession,
 } from '../../services/whatsappService';
+import { supabaseDb } from '../../lib/supabase';
 import { toast } from '../../utils/toast';
 import { parseWhatsAppPropertyMessage } from '../../utils/whatsappPropertyParser';
 import {
@@ -263,6 +264,89 @@ export const LeadWhatsAppWindow: React.FC<LeadWhatsAppWindowProps> = ({
 
   useEffect(() => {
     loadChat();
+  }, [leadId, phone]);
+
+  // Real-time synchronization: Listen for new WhatsApp messages from Evolution API / Supabase
+  useEffect(() => {
+    if (!leadId || !supabaseDb) return;
+
+    const channel = supabaseDb
+      .channel(`rt-wa-${leadId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'whatsapp_messages',
+          filter: `lead_id=eq.${leadId}`,
+        },
+        (payload: any) => {
+          const row = payload.new;
+          if (!row?.id) return;
+          setMessages((prev) => {
+            if (prev.some((m) => m.id === row.id || (row.wa_message_id && m.id === row.wa_message_id))) return prev;
+            return [
+              ...prev,
+              {
+                id: row.id,
+                provider: row.provider || 'evolution',
+                instanceName: row.instance_name || '',
+                direction: (row.direction || 'outbound') as 'inbound' | 'outbound',
+                fromNumber: row.from_number,
+                toNumber: row.to_number,
+                text: row.text || '',
+                mediaUrl: row.media_url,
+                mediaType: row.media_type,
+                pushName: row.push_name,
+                isGroup: false,
+                messageTimestamp: row.message_timestamp || row.created_at,
+                leadId: row.lead_id,
+                createdAt: row.created_at,
+              },
+            ];
+          });
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'lead_interactions',
+          filter: `lead_id=eq.${leadId}`,
+        },
+        (payload: any) => {
+          const row = payload.new;
+          if (row?.type !== 'whatsapp') return;
+          setMessages((prev) => {
+            if (prev.some((m) => m.id === row.id || (row.wa_message_id && m.id === row.wa_message_id))) return prev;
+            return [
+              ...prev,
+              {
+                id: row.id,
+                provider: 'saraswati_crm',
+                instanceName: 'agent_dbc71212-d38b-40cc-8df2-4a99828ff449',
+                direction: (row.direction || 'outbound') as 'inbound' | 'outbound',
+                fromNumber: row.wa_from || null,
+                toNumber: phone,
+                text: row.content || '',
+                mediaUrl: row.media_url,
+                mediaType: row.media_type,
+                pushName: null,
+                isGroup: false,
+                messageTimestamp: row.created_at,
+                leadId: row.lead_id,
+                createdAt: row.created_at,
+              },
+            ];
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      if (supabaseDb) supabaseDb.removeChannel(channel);
+    };
   }, [leadId, phone]);
 
   useEffect(() => {

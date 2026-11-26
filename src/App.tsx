@@ -205,8 +205,8 @@ export function App() {
             priority: 'warm',
             stage: 'new',
             timeline: 'immediate',
-            assignedTo: user.fullName,
-            assignedToId: user.id,
+            assignedTo: 'Sagar Madhukar kamble',
+            assignedToId: 'a342167a-c988-49cc-b304-29aed3fc81b4',
             notes: `Registered resale property: ${newPropertyData.title} in ${newPropertyData.locality} (${newPropertyData.price}). ${newPropertyData.description}`
           }, user.id, profiles);
         } catch (e) {

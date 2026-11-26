@@ -171,6 +171,8 @@ export const defaultOfficeMasterSession: WhatsAppSession = {
 
 /**
  * Fetch WhatsApp conversation thread for a lead from public.whatsapp_messages
+ * and public.lead_interactions (where type = 'whatsapp').
+ * Merges and de-duplicates both sources to guarantee complete conversation history.
  */
 export async function fetchLeadWhatsAppMessages(
   leadId: string,
@@ -182,6 +184,7 @@ export async function fetchLeadWhatsAppMessages(
     const digits = phone.replace(/\D/g, '');
     const phone10 = digits.slice(-10);
 
+    // 1. Fetch from public.whatsapp_messages
     let query = supabaseDb
       .from('whatsapp_messages')
       .select('*')
@@ -196,25 +199,81 @@ export async function fetchLeadWhatsAppMessages(
       query = query.or(`chat_jid.ilike.%${phone10}%,from_number.ilike.%${phone10}%,to_number.ilike.%${phone10}%`);
     }
 
-    const { data, error } = await query;
-    if (error) throw error;
+    // 2. Fetch from public.lead_interactions (Saraswati Nagri CRM WhatsApp log)
+    const intQuery = leadId
+      ? supabaseDb
+          .from('lead_interactions')
+          .select('*')
+          .eq('lead_id', leadId)
+          .eq('type', 'whatsapp')
+          .order('created_at', { ascending: true })
+          .limit(100)
+      : null;
 
-    const messages: WhatsAppMessageItem[] = (data || []).map((row: any) => ({
-      id: row.id,
-      provider: row.provider || 'evolution',
-      instanceName: row.instance_name || '',
-      direction: (row.direction || 'outbound') as 'inbound' | 'outbound',
-      fromNumber: row.from_number,
-      toNumber: row.to_number,
-      text: row.text || '',
-      mediaUrl: row.media_url,
-      mediaType: row.media_type,
-      pushName: row.push_name,
-      isGroup: Boolean(row.is_group),
-      messageTimestamp: row.message_timestamp || row.created_at,
-      leadId: row.lead_id,
-      createdAt: row.created_at,
-    }));
+    const [{ data: waRows, error: waError }, intResult] = await Promise.all([
+      query,
+      intQuery ? intQuery : Promise.resolve({ data: [] }),
+    ]);
+
+    if (waError) throw waError;
+
+    const seenIds = new Set<string>();
+    const seenSignatures = new Set<string>();
+    const messages: WhatsAppMessageItem[] = [];
+
+    // Add rows from whatsapp_messages
+    for (const row of (waRows || [])) {
+      const id = row.id;
+      seenIds.add(id);
+      if (row.wa_message_id) seenIds.add(row.wa_message_id);
+      const text = (row.text || '').trim();
+      const timestamp = row.message_timestamp || row.created_at;
+      seenSignatures.add(`${timestamp.slice(0, 16)}_${text}`);
+
+      messages.push({
+        id,
+        provider: row.provider || 'evolution',
+        instanceName: row.instance_name || '',
+        direction: (row.direction || 'outbound') as 'inbound' | 'outbound',
+        fromNumber: row.from_number,
+        toNumber: row.to_number,
+        text,
+        mediaUrl: row.media_url,
+        mediaType: row.media_type,
+        pushName: row.push_name,
+        isGroup: Boolean(row.is_group),
+        messageTimestamp: timestamp,
+        leadId: row.lead_id,
+        createdAt: row.created_at,
+      });
+    }
+
+    // Add rows from lead_interactions (Saraswati Nagri CRM sync)
+    for (const row of ((intResult as any)?.data || [])) {
+      if (seenIds.has(row.id) || (row.wa_message_id && seenIds.has(row.wa_message_id))) continue;
+      const text = (row.content || '').trim();
+      const timestamp = row.created_at;
+      if (seenSignatures.has(`${timestamp.slice(0, 16)}_${text}`)) continue;
+
+      messages.push({
+        id: row.id,
+        provider: 'saraswati_crm',
+        instanceName: 'agent_dbc71212-d38b-40cc-8df2-4a99828ff449',
+        direction: (row.direction || (text.startsWith('[Inbound') ? 'inbound' : 'outbound')) as 'inbound' | 'outbound',
+        fromNumber: row.wa_from || null,
+        toNumber: phone,
+        text,
+        mediaUrl: row.media_url,
+        mediaType: row.media_type,
+        pushName: null,
+        isGroup: false,
+        messageTimestamp: timestamp,
+        leadId: row.lead_id,
+        createdAt: timestamp,
+      });
+    }
+
+    messages.sort((a, b) => new Date(a.messageTimestamp).getTime() - new Date(b.messageTimestamp).getTime());
 
     return { messages };
   } catch (err: any) {

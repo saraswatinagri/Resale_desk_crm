@@ -169,7 +169,7 @@ export const CallOutcomePromptModal: React.FC<CallOutcomePromptModalProps> = ({
 
   if (!isOpen || !lead) return null;
 
-  const callerName = user?.fullName || lead.assignedTo || 'Sales Executive';
+  const callerName = user?.fullName || 'Sagar Madhukar kamble';
 
   // Check permission: Is the caller authorized to call/log outcome for this lead?
   const { canCall, reason } = canUserCallLead(user, lead);
@@ -200,7 +200,7 @@ export const CallOutcomePromptModal: React.FC<CallOutcomePromptModalProps> = ({
       await onSaveOutcome(lead.id, {
         caller: callerName,
         outcome: 'Invalid Number',
-        notes: 'Call outcome: Invalid number — dusre agent se verification pending',
+        notes: 'Call outcome: Invalid number recorded by Sagar Madhukar kamble',
         nextFollowUpDate: undefined,
       });
       onClose();

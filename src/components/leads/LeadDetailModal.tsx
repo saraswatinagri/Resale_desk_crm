@@ -149,10 +149,13 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
       phone: lead.whatsapp || lead.phone,
       leadName: lead.name,
       text: message,
-      senderAgentId: user?.id,
-      senderName: user?.fullName,
+      senderAgentId: 'a342167a-c988-49cc-b304-29aed3fc81b4',
+      senderName: 'Sagar Madhukar kamble',
     });
-    if (res.waLink) {
+    if (res.realSent) {
+      toast.success('Message delivered to WhatsApp & archived in CRM!');
+    } else if (res.waLink) {
+      toast.success('Message archived in CRM. Opening WhatsApp...');
       window.open(res.waLink, '_blank', 'noopener,noreferrer');
     }
     setWaInputText('');
@@ -259,7 +262,7 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
                 )}
               </div>
               <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5 truncate">
-                {lead.phone} {lead.email ? `• ${lead.email}` : ''} • Owner: <span className="font-semibold text-slate-700">{lead.assignedTo}</span>
+                {lead.phone} {lead.email ? `• ${lead.email}` : ''} • Owner: <span className="font-semibold text-slate-700">Sagar Madhukar kamble (Resale Desk Head)</span>
               </p>
             </div>
           </div>
@@ -739,7 +742,7 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Routing</span>
                   <p><strong>Source:</strong> {lead.source}</p>
                   <p><strong>Priority:</strong> {lead.priority.toUpperCase()}</p>
-                  <p><strong>Assigned:</strong> {lead.assignedTo}</p>
+                  <p><strong>Assigned Incharge:</strong> Sagar Madhukar kamble (Resale Desk Head)</p>
                   <p><strong>Registered:</strong> {formatDateTime(lead.createdAt)}</p>
                 </div>
               </div>

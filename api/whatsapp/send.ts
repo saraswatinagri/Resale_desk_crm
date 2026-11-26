@@ -93,7 +93,7 @@ export default async function handler(req: any, res: any) {
         type: 'whatsapp',
         content: String(text).trim(),
         outcome: deliverySuccess ? 'whatsapp_delivered' : 'whatsapp_sent',
-        created_by: senderAgentId || null,
+        created_by: senderAgentId || 'a342167a-c988-49cc-b304-29aed3fc81b4',
         created_at: now,
       });
 
