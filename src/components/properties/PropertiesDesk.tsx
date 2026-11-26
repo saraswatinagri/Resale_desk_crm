@@ -196,19 +196,6 @@ export const PropertiesDesk: React.FC<PropertiesDeskProps> = ({
             </button>
           )}
 
-          {onOpenWhatsAppConnect && (
-            <button
-              type="button"
-              onClick={onOpenWhatsAppConnect}
-              className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl bg-emerald-50 border border-emerald-300 hover:bg-emerald-100 text-emerald-800 font-bold text-xs shadow-2xs transition-all cursor-pointer"
-              title="WhatsApp Gateway Connection & Status"
-            >
-              <MessageSquare className="w-3.5 h-3.5 text-emerald-600" />
-              <span className="hidden sm:inline">WhatsApp Gateway</span>
-              <span className="sm:hidden">WhatsApp</span>
-            </button>
-          )}
-
           <button
             type="button"
             onClick={onOpenAddProperty}

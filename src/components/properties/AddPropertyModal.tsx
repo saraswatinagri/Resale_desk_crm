@@ -123,6 +123,8 @@ export const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
   const [category, setCategory] = useState<PropertyCategory>('flat');
 
   // Step 2: Location
+  const [city, setCity] = useState('Nagpur');
+  const [pincode, setPincode] = useState('440027');
   const [locality, setLocality] = useState<string>(NAGPUR_LOCALITIES[0].name);
   const [corridor, setCorridor] = useState<string>(NAGPUR_LOCALITIES[0].corridor);
   const [address, setAddress] = useState('');
@@ -147,6 +149,7 @@ export const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
   const [ageOfProperty, setAgeOfProperty] = useState('Ready to Move');
 
   // Step 5: Legal Audit (propertiesnagpur.com 12-point check)
+  const [titleVerification, setTitleVerification] = useState(true);
   const [nmrdaApproved, setNmrdaApproved] = useState(true);
   const [rlAvailable, setRlAvailable] = useState(true);
   const [reraRegistered, setReraRegistered] = useState(true);
@@ -154,6 +157,7 @@ export const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
   const [nitApproved, setNitApproved] = useState(false);
   const [clearTitle, setClearTitle] = useState(true);
   const [loanEligible, setLoanEligible] = useState(true);
+  const [propertyTaxPaid, setPropertyTaxPaid] = useState(true);
 
   // Step 6: Amenities
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>([
@@ -183,6 +187,7 @@ export const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
   const [ownerName, setOwnerName] = useState('');
   const [ownerPhone, setOwnerPhone] = useState('');
   const [ownerWhatsapp, setOwnerWhatsapp] = useState('');
+  const [ownerEmail, setOwnerEmail] = useState('');
   const [ownerNotes, setOwnerNotes] = useState('');
   const [description, setDescription] = useState('');
 
@@ -474,8 +479,10 @@ export const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
       reraNumber: reraNumber.trim() || undefined,
       nitApproved,
       clearTitle,
+      titleVerification,
       loanEligible,
-      eligibleBanks: loanEligible ? ['State Bank of India', 'HDFC Bank', 'ICICI Bank', 'Bank of Maharashtra'] : []
+      propertyTaxPaid,
+      eligibleBanks: loanEligible ? ['State Bank of India', 'HDFC Bank', 'ICICI Bank', 'Bank of Maharashtra', 'Axis Bank'] : []
     };
 
     setIsSaving(true);
@@ -483,7 +490,10 @@ export const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
       await onSaveProperty({
         title: finalTitle,
         transactionType,
+        propertyFor: transactionType === 'rent' ? 'For Rent' : 'For Sell',
         category,
+        city: city.trim() || 'Nagpur',
+        pincode: pincode.trim() || undefined,
         locality: locality || 'Besa',
         corridor: corridor || 'South Nagpur',
         address: finalAddress,
@@ -508,9 +518,9 @@ export const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
         legalStatus: legalAudit,
         amenities: selectedAmenities,
         highlights: [
-          `Prime location in ${locality} corridor`,
+          `Prime location in ${locality} (${corridor || 'Nagpur'})`,
           `${bhk || 'Property'} with ${facing} facing`,
-          clearTitle ? 'Clear title with verified documents' : 'Paperwork in process',
+          clearTitle ? 'Clear title with verified search report' : 'Paperwork in process',
           loanEligible ? 'Bank loan available from major nationalized banks' : ''
         ].filter(Boolean),
         images: (() => {
@@ -525,6 +535,7 @@ export const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
           name: finalOwnerName,
           phone: finalOwnerPhone,
           whatsapp: ownerWhatsapp.trim() || finalOwnerPhone,
+          email: ownerEmail.trim() || undefined,
           negotiable,
           commissionPercent: Number(commissionPercent) || 2,
           notes: ownerNotes.trim() || undefined
@@ -709,17 +720,6 @@ export const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
                       <Smartphone className="w-3 h-3" />
                       <span>Copy CRM number</span>
                     </button>
-
-                    {onOpenWhatsAppConnect && (
-                      <button
-                        type="button"
-                        onClick={onOpenWhatsAppConnect}
-                        className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-700 hover:text-slate-900 bg-white border border-slate-200 px-2 py-1 rounded-lg transition-colors cursor-pointer"
-                      >
-                        <QrCode className="w-3 h-3 text-slate-500" />
-                        <span>Pair / QR</span>
-                      </button>
-                    )}
                   </div>
                 </div>
 
@@ -987,6 +987,34 @@ export const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wide mb-1 block">
+                    City
+                  </label>
+                  <input
+                    type="text"
+                    value={city}
+                    onChange={(e) => setCity(e.target.value)}
+                    className="w-full p-2.5 text-sm font-bold border border-slate-200 rounded-lg bg-slate-50 text-slate-800"
+                    placeholder="Nagpur"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wide mb-1 block">
+                    Pincode (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={pincode}
+                    onChange={(e) => setPincode(e.target.value)}
+                    placeholder="e.g. 440027, 440034"
+                    className="w-full p-2.5 text-sm font-medium border border-slate-200 rounded-lg bg-white text-slate-800 font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wide mb-1 block">
                     Nagpur Locality
                   </label>
                   <select
@@ -1219,6 +1247,16 @@ export const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
                 <label className="flex items-center gap-2 cursor-pointer font-bold text-slate-700">
                   <input
                     type="checkbox"
+                    checked={titleVerification}
+                    onChange={(e) => setTitleVerification(e.target.checked)}
+                    className="rounded text-teal-600"
+                  />
+                  <span>Title Verification & Search Report</span>
+                </label>
+
+                <label className="flex items-center gap-2 cursor-pointer font-bold text-slate-700">
+                  <input
+                    type="checkbox"
                     checked={nmrdaApproved}
                     onChange={(e) => setNmrdaApproved(e.target.checked)}
                     className="rounded text-teal-600"
@@ -1274,6 +1312,16 @@ export const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
                     className="rounded text-teal-600"
                   />
                   <span>Nationalized Bank Loan Eligible (SBI, HDFC)</span>
+                </label>
+
+                <label className="flex items-center gap-2 cursor-pointer font-bold text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={propertyTaxPaid}
+                    onChange={(e) => setPropertyTaxPaid(e.target.checked)}
+                    className="rounded text-teal-600"
+                  />
+                  <span>Property Tax / NMC Dues Paid</span>
                 </label>
               </div>
 
@@ -1601,6 +1649,17 @@ export const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
                     value={ownerPhone}
                     onChange={(e) => setOwnerPhone(e.target.value)}
                     className="w-full p-2.5 text-sm font-medium border border-slate-200 rounded-lg font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wide mb-1 block">Owner / Agent Email (Optional)</label>
+                  <input
+                    type="email"
+                    placeholder="e.g. owner@example.com"
+                    value={ownerEmail}
+                    onChange={(e) => setOwnerEmail(e.target.value)}
+                    className="w-full p-2.5 text-sm font-medium border border-slate-200 rounded-lg"
                   />
                 </div>
               </div>

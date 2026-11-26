@@ -148,40 +148,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
           })}
         </nav>
 
-        {/* WhatsApp Gateway Quick Access */}
-        {onOpenWhatsAppConnect && (
-          <div className={`mt-auto ${collapsed ? 'px-2 pb-2' : 'px-4 pb-3'}`}>
-            <button
-              type="button"
-              onClick={onOpenWhatsAppConnect}
-              title="WhatsApp Gateway Connection"
-              className={`w-full flex items-center rounded-xl bg-gradient-to-r from-emerald-950/80 to-teal-950/60 border border-emerald-500/40 text-emerald-300 hover:from-emerald-900/90 hover:to-teal-900/70 hover:text-white transition-all cursor-pointer font-bold text-xs ${
-                collapsed ? 'justify-center p-2.5' : 'gap-2.5 p-3'
-              }`}
-            >
-              <div className="relative flex items-center justify-center">
-                <span className="absolute -top-0.5 -right-0.5 flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-                </span>
-                <MessageSquare className="w-4 h-4 text-emerald-400" />
-              </div>
-              {!collapsed && (
-                <div className="flex-1 text-left flex items-center justify-between min-w-0">
-                  <span className="truncate">{whatsAppLive ? 'WhatsApp live' : 'Pair WhatsApp'}</span>
-                  <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded border shrink-0 ${
-                    whatsAppLive
-                      ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
-                      : 'bg-amber-500/20 text-amber-200 border-amber-500/30'
-                  }`}>
-                    {whatsAppLive ? 'Live' : 'Pair'}
-                  </span>
-                </div>
-              )}
-            </button>
-          </div>
-        )}
-
         {/* User Profile (Desktop — exact Saraswati Nagri CRM) */}
         <div className={`border-t border-slate-800 ${collapsed ? 'p-3' : 'p-4'}`}>
           <div
@@ -241,24 +207,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </button>
           );
         })}
-        {onOpenWhatsAppConnect && (
-          <button
-            type="button"
-            onClick={onOpenWhatsAppConnect}
-            className="flex flex-col items-center justify-center gap-0.5 min-h-[46px] py-1 px-1 rounded-xl transition-all relative flex-1 min-w-0 cursor-pointer text-emerald-600 hover:text-emerald-700 font-bold"
-          >
-            <div className="relative">
-              <span className="absolute -top-0.5 -right-0.5 flex h-1.5 w-1.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
-              </span>
-              <MessageSquare className="w-5 h-5 text-emerald-600 shrink-0" />
-            </div>
-            <span className={`text-[10px] tracking-tight truncate max-w-full leading-tight font-bold ${whatsAppLive ? 'text-emerald-700' : 'text-amber-700'}`}>
-              {whatsAppLive ? 'WhatsApp' : 'Pair WA'}
-            </span>
-          </button>
-        )}
       </nav>
     </>
   );

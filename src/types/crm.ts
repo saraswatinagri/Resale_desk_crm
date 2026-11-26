@@ -90,14 +90,17 @@ export interface LegalAudit {
   rlAvailable: boolean; // Release Letter
   nitApproved: boolean;
   clearTitle: boolean;
+  titleVerification?: boolean; // Title verification certificate / search report
   loanEligible: boolean;
   eligibleBanks: string[];
+  propertyTaxPaid?: boolean;
 }
 
 export interface PropertyOwner {
   name: string;
   phone: string;
   whatsapp?: string;
+  email?: string;
   negotiable: boolean;
   commissionPercent?: number;
   notes?: string;
@@ -108,7 +111,10 @@ export interface ResaleProperty {
   propertyCode?: string; // e.g. "NP-1001"
   title: string;
   transactionType: TransactionType; // resale / rent
+  propertyFor?: 'For Sell' | 'For Rent';
   category: PropertyCategory;
+  city?: string; // Default: "Nagpur"
+  pincode?: string; // e.g. "440027", "440034"
   locality: string; // e.g. "Besa", "Wardha Road", "Manish Nagar"
   corridor: string;
   address: string;

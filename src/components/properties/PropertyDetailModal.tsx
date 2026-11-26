@@ -601,7 +601,7 @@ ${property.legalStatus.nmrdaApproved ? '✅ NMRDA / NIT मंजूर ले�
                       ) : (
                         <Send className="w-3.5 h-3.5" />
                       )}
-                      <span>Post via WhatsApp Gateway</span>
+                      <span>Share on WhatsApp</span>
                     </button>
 
                     {targetPhone && (

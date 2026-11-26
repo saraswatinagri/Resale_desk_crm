@@ -170,25 +170,6 @@ export const Navbar: React.FC<NavbarProps> = ({
           )}
         </button>
 
-        {/* WHATSAPP GATEWAY PILL */}
-        {onOpenWhatsAppConnect && (
-          <button
-            type="button"
-            onClick={onOpenWhatsAppConnect}
-            className={`inline-flex items-center justify-center gap-1 sm:gap-1.5 rounded-full min-h-[30px] sm:min-h-[36px] px-2.5 sm:px-3.5 py-1 sm:py-1.5 font-bold text-xs text-white shadow-xs transition-colors cursor-pointer shrink-0 ${
-              whatsAppLive ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-amber-600 hover:bg-amber-700'
-            }`}
-            title={whatsAppLive ? 'WhatsApp line is paired & live' : 'Pair the WhatsApp gateway'}
-          >
-            <span className={`relative flex h-2 w-2 ${whatsAppLive ? '' : 'opacity-80'}`}>
-              <span className={`absolute inline-flex h-full w-full rounded-full opacity-75 ${whatsAppLive ? 'animate-ping bg-emerald-300' : 'bg-amber-200'}`} />
-              <span className={`relative inline-flex rounded-full h-2 w-2 ${whatsAppLive ? 'bg-white' : 'bg-amber-100'}`} />
-            </span>
-            <MessageSquare className="w-3.5 h-3.5 text-white" />
-            <span>{whatsAppLive ? 'WhatsApp' : 'Pair WA'}</span>
-          </button>
-        )}
-
         {/* User Profile Avatar with Interactive Dropdown (Desktop & Mobile) */}
         <div className="relative shrink-0" ref={profileMenuRef}>
           <button
@@ -244,20 +225,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                   <MessageSquare className="w-3.5 h-3.5 text-green-600" />
                   <span>WhatsApp Pitch Templates</span>
                 </button>
-
-                {onOpenWhatsAppConnect && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowProfileMenu(false);
-                      onOpenWhatsAppConnect();
-                    }}
-                    className="w-full text-left px-2.5 py-1.5 text-xs text-emerald-700 bg-emerald-50/60 hover:bg-emerald-100/70 rounded-xl flex items-center gap-2 cursor-pointer font-bold transition-colors"
-                  >
-                    <MessageSquare className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>WhatsApp Gateway Status</span>
-                  </button>
-                )}
 
                 {onSignOut && (
                   <button

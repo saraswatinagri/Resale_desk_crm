@@ -766,45 +766,19 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
           {/* TAB 5: WHATSAPP CHAT THREAD */}
           {activeTab === 'whatsapp' && (
             <div className="space-y-4">
-              {/* WhatsApp Active Line Bar */}
-              <div className="p-3 rounded-2xl bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200/80 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-xl bg-emerald-500 text-white flex items-center justify-center font-bold">
-                    <MessageSquare className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <p className="font-bold text-slate-800 text-xs">
-                      Saraswati Nagri WhatsApp Gateway
-                    </p>
-                    <p className="text-[10px] text-slate-500">
-                      Sending via <strong>+91 89560 40220</strong> (Office Master Line) • Client: <strong>{lead.phone}</strong>
-                    </p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={loadWhatsAppChat}
-                  disabled={waLoading}
-                  className="px-2.5 py-1 rounded-xl bg-white border border-emerald-200 text-emerald-800 font-bold text-[10px] hover:bg-emerald-50 transition-colors flex items-center gap-1 cursor-pointer"
-                >
-                  <RefreshCw className={`w-3 h-3 ${waLoading ? 'animate-spin' : ''}`} />
-                  <span>Refresh Chat</span>
-                </button>
-              </div>
-
               {/* WhatsApp Active Line Bar + Open Overlay Window */}
-              <div className="p-3 rounded-2xl bg-gradient-to-r from-emerald-50 via-teal-50 to-purple-50 border border-emerald-200/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
+              <div className="p-3 rounded-2xl bg-gradient-to-r from-emerald-50 via-teal-50 to-slate-50 border border-emerald-200/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-xl bg-emerald-500 text-white flex items-center justify-center font-bold shadow-sm">
+                  <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold shadow-xs">
                     <MessageSquare className="w-4 h-4" />
                   </div>
                   <div>
                     <p className="font-bold text-slate-800 text-xs flex items-center gap-1.5">
-                      <span>Saraswati Nagri WhatsApp Gateway</span>
-                      <span className="px-1.5 py-0.2 bg-emerald-100 text-emerald-800 rounded font-black text-[9px]">LIVE</span>
+                      <span>WhatsApp Messages</span>
+                      <span className="text-[10px] text-slate-500 font-mono">({lead.phone})</span>
                     </p>
                     <p className="text-[10px] text-slate-500">
-                      Line: <strong>+91 89560 40220</strong> • Lead: <strong>{lead.phone}</strong>
+                      Real-time conversation archive synchronized with Saraswati Nagri CRM
                     </p>
                   </div>
                 </div>
@@ -817,11 +791,11 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
                         onClose();
                         onOpenWhatsAppChat(lead);
                       }}
-                      className="px-2.5 py-1 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-[10px] transition-colors flex items-center gap-1 cursor-pointer shadow-xs"
+                      className="px-2.5 py-1 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] transition-colors flex items-center gap-1 cursor-pointer shadow-xs"
                       title="Open full WhatsApp chat drawer"
                     >
                       <Bot className="w-3 h-3" />
-                      <span>Full WhatsApp Window →</span>
+                      <span>Open WhatsApp Window →</span>
                     </button>
                   )}
                   <button

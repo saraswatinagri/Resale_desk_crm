@@ -254,7 +254,7 @@ export const WhatsAppTemplatesModal: React.FC<WhatsAppTemplatesModalProps> = ({
 
         {/* Footer */}
         <div className="px-6 py-3 border-t border-slate-200 bg-slate-50 flex items-center justify-between text-xs">
-          <span className="text-slate-400">Nagpur Properties CRM WhatsApp Gateway</span>
+          <span className="text-slate-400">Saraswati Nagri • Resale Desk CRM</span>
           <button
             onClick={onClose}
             className="px-4 py-1.5 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold"

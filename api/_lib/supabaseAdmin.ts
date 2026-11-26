@@ -25,6 +25,15 @@ export function isEvolutionConfigured(): boolean {
   return Boolean(EVOLUTION_API_URL && EVOLUTION_API_KEY);
 }
 
+export const WHATSAPP_PROVIDER = process.env.WHATSAPP_PROVIDER || process.env.VITE_WHATSAPP_PROVIDER || 'evolution';
+export const META_PHONE_NUMBER_ID = process.env.META_PHONE_NUMBER_ID || '';
+export const META_ACCESS_TOKEN = process.env.META_ACCESS_TOKEN || '';
+export const META_GRAPH_VERSION = process.env.META_GRAPH_VERSION || 'v19.0';
+
+export function isMetaConfigured(): boolean {
+  return Boolean(META_PHONE_NUMBER_ID && META_ACCESS_TOKEN);
+}
+
 export function setCorsHeaders(res: any) {
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Origin', '*');

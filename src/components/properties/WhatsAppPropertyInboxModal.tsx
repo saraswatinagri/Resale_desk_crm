@@ -289,17 +289,6 @@ export const WhatsAppPropertyInboxModal: React.FC<WhatsAppPropertyInboxModalProp
               <span>Forward to +91 89560 40220</span>
               <ExternalLink className="w-3 h-3 ml-0.5" />
             </a>
-
-            {onOpenWhatsAppConnect && (
-              <button
-                type="button"
-                onClick={onOpenWhatsAppConnect}
-                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white border border-slate-300 text-slate-700 text-[11px] font-bold hover:bg-slate-50 transition-colors cursor-pointer"
-              >
-                <QrCode className="w-3.5 h-3.5 text-slate-500" />
-                <span>Pair / QR Code</span>
-              </button>
-            )}
           </div>
         </div>
 
