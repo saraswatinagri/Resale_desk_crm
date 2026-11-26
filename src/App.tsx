@@ -44,12 +44,19 @@ import {
 } from './types/crm';
 import { Building2, ArrowRight } from 'lucide-react';
 import { updateDynamicKnowledgeBase } from './services/knowledgeBaseService';
+import { fetchWhatsAppSessions } from './services/whatsappService';
 
 export function App() {
   const { user, profiles, isLoading: authLoading, isLiveSupabase, signOut } = useAuth();
 
   const [currentTab, setCurrentTab] = useState<CrmTab>('leads');
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    try {
+      return window.localStorage.getItem('rd.sidebarCollapsed') !== '0';
+    } catch {
+      return true;
+    }
+  });
   const [activeDesk, setActiveDesk] = useState<'resale' | 'sales'>('resale');
 
   // Core Data State
@@ -70,6 +77,8 @@ export function App() {
   const [propertyPrefill, setPropertyPrefill] = useState<Partial<ResaleProperty> | null>(null);
   const [openWithWhatsAppImport, setOpenWithWhatsAppImport] = useState(false);
   const [whatsAppLead, setWhatsAppLead] = useState<ResaleLead | null>(null);
+  const [whatsAppDraft, setWhatsAppDraft] = useState<string | null>(null);
+  const [whatsAppLive, setWhatsAppLive] = useState(false);
 
   const [activeLead, setActiveLead] = useState<ResaleLead | null>(null);
   const [activeProperty, setActiveProperty] = useState<ResaleProperty | null>(null);
@@ -143,6 +152,38 @@ export function App() {
       reloadData();
     }
   }, [user, reloadData]);
+
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    fetchWhatsAppSessions()
+      .then((res) => {
+        if (!cancelled) setWhatsAppLive(res.sessions.some((s) => s.status === 'connected') || Boolean(res.activeSession && res.activeSession.status === 'connected'));
+      })
+      .catch(() => {
+        if (!cancelled) setWhatsAppLive(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user, isWhatsAppConnectOpen, whatsAppLead]);
+
+  const openWhatsAppForLead = useCallback((lead: ResaleLead, draft?: string) => {
+    setWhatsAppDraft(draft || null);
+    setWhatsAppLead(lead);
+  }, []);
+
+  const toggleSidebar = () => {
+    setSidebarCollapsed((prev) => {
+      const next = !prev;
+      try {
+        window.localStorage.setItem('rd.sidebarCollapsed', next ? '1' : '0');
+      } catch {
+        /* private mode */
+      }
+      return next;
+    });
+  };
 
   // Handler: Add Lead
   const handleSaveLead = async (
@@ -399,7 +440,7 @@ export function App() {
         currentTab={currentTab}
         onSelectTab={setCurrentTab}
         collapsed={sidebarCollapsed}
-        onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+        onToggleCollapse={toggleSidebar}
         onOpenCalculator={() => setIsCalculatorOpen(true)}
         onOpenTemplates={() => setIsTemplatesOpen(true)}
         onOpenBackup={() => setIsBackupOpen(true)}
@@ -409,6 +450,7 @@ export function App() {
         totalProperties={properties.length}
         currentUser={user}
         isLiveSupabase={isLiveSupabase}
+        whatsAppLive={whatsAppLive}
         onSignOut={signOut}
       />
 
@@ -432,6 +474,7 @@ export function App() {
           onToggleDesk={handleToggleDesk}
           currentUser={user}
           onSignOut={signOut}
+          whatsAppLive={whatsAppLive}
         />
 
         {/* Desk Switcher Context Strip */}
@@ -478,7 +521,7 @@ export function App() {
               onUpdateLeadStage={handleUpdateLeadStage}
               onDeleteLead={handleDeleteLead}
               onOpenSmartMatcherForLead={handleOpenSmartMatcherForLead}
-              onOpenWhatsAppChat={setWhatsAppLead}
+              onOpenWhatsAppChat={openWhatsAppForLead}
               onExportCsv={handleExportLeadsCsv}
               onAddCallLog={handleAddCallLog}
             />
@@ -581,7 +624,7 @@ export function App() {
           onUpdateStage={handleUpdateLeadStage}
           onAddCallLog={handleAddCallLog}
           onScheduleVisit={handleScheduleVisit}
-          onOpenWhatsAppChat={setWhatsAppLead}
+          onOpenWhatsAppChat={openWhatsAppForLead}
           onDeleteLead={handleDeleteLead}
         />
       )}
@@ -595,9 +638,13 @@ export function App() {
           phone={whatsAppLead.whatsapp || whatsAppLead.phone}
           stage={whatsAppLead.rawStatus || whatsAppLead.stage}
           projectName={whatsAppLead.plotInterest || 'Nagpur Properties · Resale Desk'}
-          onClose={() => setWhatsAppLead(null)}
+          onClose={() => {
+            setWhatsAppLead(null);
+            setWhatsAppDraft(null);
+          }}
           onConnect={() => setIsWhatsAppConnectOpen(true)}
           variant="overlay"
+          initialDraft={whatsAppDraft}
           properties={properties}
           onConvertToProperty={(prefill) => {
             setPropertyPrefill(prefill);

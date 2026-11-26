@@ -107,16 +107,32 @@ export const WhatsAppConnectModal: React.FC<WhatsAppConnectModalProps> = ({
     }
   };
 
-  const handleTestWhatsApp = () => {
-    const phone = testNumber.trim() || activeSession?.phoneNumber || '918956040220';
-    const digits = phone.replace(/\D/g, '');
-    const cleanDigits = digits.length === 10 ? `91${digits}` : digits;
-    const testUrl = `https://wa.me/${cleanDigits}?text=${encodeURIComponent(
-      'Namaste from Saraswati Nagri & Nagpur Properties Resale Desk! WhatsApp gateway is connected and active.'
-    )}`;
-    window.open(testUrl, '_blank', 'noopener,noreferrer');
-    setTestStatus('WhatsApp chat launched successfully!');
-    setTimeout(() => setTestStatus(null), 3000);
+  const handleTestWhatsApp = async () => {
+    const phone = (testNumber.trim() || activeSession?.phoneNumber || '').replace(/\D/g, '');
+    const phone10 = phone.slice(-10);
+    if (phone10.length !== 10) {
+      setTestStatus('Enter a 10-digit mobile to send a test from the paired line.');
+      return;
+    }
+    if (!isConnected) {
+      setTestStatus('Line is not paired. Scan the QR above, then send the test from inside the CRM.');
+      return;
+    }
+    setTestStatus('Sending test through the gateway…');
+    const { sendLeadWhatsAppMessage } = await import('../../services/whatsappService');
+    const res = await sendLeadWhatsAppMessage({
+      leadId: 'gateway-test',
+      phone: phone10,
+      leadName: 'Gateway test',
+      text: 'Namaste from Saraswati Nagri Resale Desk. This is a gateway test — the message was sent from inside the CRM.',
+      instanceName: activeSession?.instanceName,
+    });
+    setTestStatus(
+      res.realSent
+        ? `Delivered to +91 ${phone10} from the paired line.`
+        : res.error || 'The line did not deliver. Check the QR session and try again.'
+    );
+    setTimeout(() => setTestStatus(null), 5000);
   };
 
   return (
@@ -362,7 +378,7 @@ export const WhatsAppConnectModal: React.FC<WhatsAppConnectModalProps> = ({
                     <Send className="w-3.5 h-3.5 text-emerald-600" />
                     Test WhatsApp Gateway Link
                   </span>
-                  <span className="text-[10px] text-slate-400 font-medium">Instant wa.me handoff</span>
+                  <span className="text-[10px] text-slate-400 font-medium">Sends from the paired line</span>
                 </div>
 
                 <div className="flex gap-2">

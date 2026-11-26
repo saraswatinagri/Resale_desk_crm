@@ -107,7 +107,7 @@ export const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
   const [isSaving, setIsSaving] = useState(false);
 
   // WhatsApp Message Fast-Importer State
-  const [isWhatsAppImporterOpen, setIsWhatsAppImporterOpen] = useState(Boolean(defaultOpenWhatsAppImport || initialPrefill));
+  const [isWhatsAppImporterOpen, setIsWhatsAppImporterOpen] = useState(Boolean(defaultOpenWhatsAppImport));
   const [whatsappImportTab, setWhatsappImportTab] = useState<'direct' | 'paste'>('direct');
   const [inboundMessages, setInboundMessages] = useState<WhatsAppInboundPropertyMessage[]>([]);
   const [isLoadingInbound, setIsLoadingInbound] = useState(false);
@@ -577,11 +577,18 @@ export const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
                 key={s.id}
                 type="button"
                 onClick={() => { setErrorMsg(''); setStep(s.id); }}
-                title={`Step ${s.id}: ${s.label} (Click to jump)`}
-                className={`h-1.5 sm:h-2 flex-1 rounded-full transition-all duration-300 cursor-pointer ${
-                  step >= s.id ? 'bg-amber-500 hover:bg-amber-600' : 'bg-slate-200 hover:bg-slate-300'
-                }`}
-              />
+                title={`Step ${s.id}: ${s.label}`}
+                className="flex-1 min-w-0 group"
+              >
+                <span className={`block h-1.5 sm:h-2 rounded-full transition-all duration-300 ${
+                  step >= s.id ? 'bg-amber-500 group-hover:bg-amber-600' : 'bg-slate-200 group-hover:bg-slate-300'
+                }`} />
+                <span className={`hidden md:block mt-1 text-[9px] font-bold truncate ${
+                  step === s.id ? 'text-amber-700' : 'text-slate-400'
+                }`}>
+                  {s.label}
+                </span>
+              </button>
             ))}
           </div>
         </div>
@@ -687,16 +694,21 @@ export const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
                       <span>Refresh</span>
                     </button>
 
-                    <a
-                      href="https://wa.me/918956040220?text=Forward%20property%20listing"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 hover:text-emerald-900 bg-emerald-50 border border-emerald-200 px-2 py-1 rounded-lg transition-colors"
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText('8956040220');
+                          setParseNotice({ message: 'CRM WhatsApp number copied. Forward the listing to +91 89560 40220, then refresh this list.', tone: 'ok' });
+                        } catch {
+                          setParseNotice({ message: 'Forward the listing to +91 89560 40220, then tap Refresh.', tone: 'info' });
+                        }
+                      }}
+                      className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 hover:text-emerald-900 bg-emerald-50 border border-emerald-200 px-2 py-1 rounded-lg transition-colors cursor-pointer"
                     >
                       <Smartphone className="w-3 h-3" />
-                      <span>Forward to CRM</span>
-                      <ExternalLink className="w-2.5 h-2.5" />
-                    </a>
+                      <span>Copy CRM number</span>
+                    </button>
 
                     {onOpenWhatsAppConnect && (
                       <button
@@ -1620,7 +1632,7 @@ export const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
         </div>
 
         {/* Modal Footer Stepper Controls */}
-        <div className="p-4 border-t border-slate-100 bg-slate-50 flex items-center justify-between gap-2">
+        <div className="sticky bottom-0 p-3 sm:p-4 border-t border-slate-100 bg-white/95 backdrop-blur flex items-center justify-between gap-2">
           <button
             type="button"
             onClick={step === 1 ? onClose : handleBack}
@@ -1640,7 +1652,7 @@ export const AddPropertyModal: React.FC<AddPropertyModalProps> = ({
                 type="button"
                 disabled={isSaving}
                 onClick={() => handleFinalSubmit()}
-                className="hidden sm:flex items-center gap-1.5 px-4 py-2 rounded-xl border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold text-xs transition-colors cursor-pointer"
+                className="flex items-center gap-1 sm:gap-1.5 px-3 sm:px-4 py-2 rounded-xl border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold text-xs transition-colors cursor-pointer"
                 title="Save immediately with current information"
               >
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />

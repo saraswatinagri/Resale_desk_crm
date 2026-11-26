@@ -50,6 +50,8 @@ export interface LeadWhatsAppWindowProps {
   onConvertToProperty?: (prefill: Partial<ResaleProperty>) => void;
   properties?: ResaleProperty[];
   lead?: ResaleLead;
+  /** Prefill the composer (property pitch, quick reply) without leaving the CRM. */
+  initialDraft?: string | null;
 }
 
 const IST = 'Asia/Kolkata';
@@ -161,11 +163,12 @@ export const LeadWhatsAppWindow: React.FC<LeadWhatsAppWindowProps> = ({
   onConvertToProperty,
   properties = [],
   lead,
+  initialDraft,
 }) => {
   const [messages, setMessages] = useState<WhatsAppMessageItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
-  const [chatMessage, setChatMessage] = useState('');
+  const [chatMessage, setChatMessage] = useState(initialDraft || '');
   const [language, setLanguage] = useState<WaLanguage>(preferredLanguage);
   const [activeSession, setActiveSession] = useState<WhatsAppSession | null>(null);
   const [sessionsCount, setSessionsCount] = useState(0);
@@ -173,6 +176,10 @@ export const LeadWhatsAppWindow: React.FC<LeadWhatsAppWindowProps> = ({
   const [propertySearch, setPropertySearch] = useState('');
   const [isDraftingAi, setIsDraftingAi] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (initialDraft) setChatMessage(initialDraft);
+  }, [initialDraft, leadId]);
 
   // Generate and insert pitch for chosen property
   const handleSelectPropertyPitch = async (prop: ResaleProperty, autoSend = false) => {
@@ -431,15 +438,16 @@ export const LeadWhatsAppWindow: React.FC<LeadWhatsAppWindowProps> = ({
 
       const phoneDigits = phone.replace(/\D/g, '');
       const phone10 = phoneDigits.slice(-10);
-      const waLink = res.waLink || `https://wa.me/91${phone10}?text=${encodeURIComponent(textToSend)}`;
 
       if (!res.success) {
-        toast.error('Could not save WhatsApp message to database');
+        setMessages((prev) => prev.filter((m) => m.id !== tempId));
+        toast.error(res.error || 'Could not save WhatsApp message. Pair the gateway and try again.');
+        onConnect();
       } else if (res.realSent) {
-        toast.success(`Delivered to ${leadName}'s WhatsApp (+91 ${phone10}) & archived in CRM!`);
+        toast.success(`Delivered to ${leadName} (+91 ${phone10}) and archived in the CRM.`);
       } else {
-        toast.success(`Message logged in CRM. Opening WhatsApp for ${leadName}...`);
-        window.open(waLink, '_blank', 'noopener,noreferrer');
+        toast.error('Saved in the CRM only. The WhatsApp line is not connected, so nothing left the desk. Pair the gateway, then send again.');
+        onConnect();
       }
     } catch (err: any) {
       toast.error('Send error: ' + (err.message || 'Unknown'));
@@ -822,7 +830,7 @@ export const LeadWhatsAppWindow: React.FC<LeadWhatsAppWindowProps> = ({
             onClick={handleSend}
             disabled={sending || !chatMessage.trim()}
             className="w-10 h-10 bg-[#00a884] text-white rounded-full flex items-center justify-center hover:bg-[#008f72] shadow-sm disabled:opacity-40 disabled:cursor-not-allowed shrink-0 transition-colors cursor-pointer mb-0.5"
-            title="Send in CRM via WhatsApp Gateway"
+            title="Send inside the CRM through the paired WhatsApp line"
             aria-label="Send WhatsApp message"
           >
             {sending ? (
@@ -832,12 +840,14 @@ export const LeadWhatsAppWindow: React.FC<LeadWhatsAppWindowProps> = ({
             )}
           </button>
 
+          {/* 1-Click Fallback to WhatsApp Web / Native Mobile WhatsApp */}
           <a
-            href={`https://wa.me/91${phone.replace(/\D/g, '').slice(-10)}?text=${encodeURIComponent(chatMessage.trim() || 'Namaste')}`}
+            href={`https://wa.me/91${phone.replace(/\D/g, '').slice(-10)}?text=${encodeURIComponent(chatMessage || '')}`}
             target="_blank"
-            rel="noreferrer"
-            title="Launch in Native WhatsApp / Web"
-            className="w-10 h-10 bg-white hover:bg-slate-100 border border-slate-200 text-green-700 rounded-full flex items-center justify-center shadow-xs shrink-0 transition-colors cursor-pointer mb-0.5"
+            rel="noopener noreferrer"
+            className="w-10 h-10 rounded-full border border-slate-200 bg-white hover:bg-emerald-50 text-emerald-700 flex items-center justify-center shadow-xs transition-colors cursor-pointer shrink-0 mb-0.5"
+            title="Open in WhatsApp Web / App directly with this message prefilled"
+            aria-label="Open in WhatsApp"
           >
             <ExternalLink className="w-4 h-4" />
           </a>

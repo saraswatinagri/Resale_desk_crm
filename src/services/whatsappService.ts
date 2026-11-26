@@ -444,12 +444,12 @@ export async function sendLeadWhatsAppMessage(params: {
       text: text.trim(),
       is_group: false,
       message_timestamp: now,
-      lead_id: leadId || null,
+      lead_id: /^[0-9a-f-]{36}$/i.test(leadId) ? leadId : null,
       created_at: now,
     });
 
-    // 2. Insert into public.lead_interactions
-    if (leadId) {
+    // 2. Insert into public.lead_interactions (real leads only — gateway tests have no row)
+    if (leadId && /^[0-9a-f-]{36}$/i.test(leadId)) {
       await supabaseDb.from('lead_interactions').insert({
         lead_id: leadId,
         type: 'whatsapp',

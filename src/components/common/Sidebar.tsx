@@ -28,6 +28,7 @@ interface SidebarProps {
   totalProperties: number;
   currentUser: CrmUserProfile;
   isLiveSupabase: boolean;
+  whatsAppLive?: boolean;
   onSignOut: () => void;
 }
 
@@ -45,6 +46,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   totalProperties,
   currentUser,
   isLiveSupabase,
+  whatsAppLive = false,
   onSignOut,
 }) => {
   const navItems: Array<{ id: CrmTab; label: string; icon: React.ComponentType<{ className?: string }>; badge: string | number | null }> = [
@@ -166,9 +168,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
               {!collapsed && (
                 <div className="flex-1 text-left flex items-center justify-between min-w-0">
-                  <span className="truncate">WhatsApp Gateway</span>
-                  <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 shrink-0">
-                    Active
+                  <span className="truncate">{whatsAppLive ? 'WhatsApp live' : 'Pair WhatsApp'}</span>
+                  <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded border shrink-0 ${
+                    whatsAppLive
+                      ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                      : 'bg-amber-500/20 text-amber-200 border-amber-500/30'
+                  }`}>
+                    {whatsAppLive ? 'Live' : 'Pair'}
                   </span>
                 </div>
               )}
@@ -248,7 +254,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </span>
               <MessageSquare className="w-5 h-5 text-emerald-600 shrink-0" />
             </div>
-            <span className="text-[10px] tracking-tight truncate max-w-full leading-tight font-bold text-emerald-700">WhatsApp</span>
+            <span className={`text-[10px] tracking-tight truncate max-w-full leading-tight font-bold ${whatsAppLive ? 'text-emerald-700' : 'text-amber-700'}`}>
+              {whatsAppLive ? 'WhatsApp' : 'Pair WA'}
+            </span>
           </button>
         )}
       </nav>

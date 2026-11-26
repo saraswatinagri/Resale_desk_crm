@@ -43,7 +43,7 @@ interface LeadsDeskProps {
   onUpdateLeadStage: (leadId: string, stage: LeadStage) => void;
   onDeleteLead: (leadId: string) => void;
   onOpenSmartMatcherForLead: (lead: ResaleLead) => void;
-  onOpenWhatsAppChat?: (lead: ResaleLead) => void;
+  onOpenWhatsAppChat?: (lead: ResaleLead, draft?: string) => void;
   onExportCsv?: () => void;
   onAddCallLog?: (leadId: string, log: Omit<CallLog, 'id' | 'date'>) => Promise<void>;
 }
@@ -146,7 +146,9 @@ export const LeadsDesk: React.FC<LeadsDeskProps> = ({
   const [viewMode, setViewMode] = useState<'cards' | 'table' | 'kanban'>('cards');
   const [showAdvancedFilters, setShowAdvancedFilters] = useState<boolean>(false);
   const [promptCallLead, setPromptCallLead] = useState<ResaleLead | null>(null);
+  const [leadToDelete, setLeadToDelete] = useState<ResaleLead | null>(null);
   const [permissionAlert, setPermissionAlert] = useState<string | null>(null);
+  const [dragLeadId, setDragLeadId] = useState<string | null>(null);
 
   const { user } = useAuth();
 
@@ -177,7 +179,41 @@ export const LeadsDesk: React.FC<LeadsDeskProps> = ({
 
   const todayStr = new Date().toISOString().slice(0, 10);
 
-  const agentOptions = ['Sagar Madhukar kamble'];
+  const agentOptions = useMemo(() => {
+    const names = new Set<string>();
+    profiles.forEach((p) => {
+      if (p.fullName) names.add(p.fullName);
+    });
+    leads.forEach((l) => {
+      if (l.assignedTo) names.add(l.assignedTo);
+    });
+    return Array.from(names).sort((a, b) => a.localeCompare(b));
+  }, [profiles, leads]);
+
+  const queueCounts = useMemo(() => {
+    let today = 0;
+    let overdue = 0;
+    let hot = 0;
+    for (const lead of leads) {
+      if (lead.priority === 'hot') hot += 1;
+      const fu = lead.nextFollowUp?.slice(0, 10);
+      const open = lead.stage !== 'closed' && lead.stage !== 'lost';
+      if (fu === todayStr && open) today += 1;
+      if (fu && fu < todayStr && open) overdue += 1;
+    }
+    return { today, overdue, hot };
+  }, [leads, todayStr]);
+
+  const nextActionFor = (lead: ResaleLead) => {
+    const fu = lead.nextFollowUp?.slice(0, 10);
+    const open = lead.stage !== 'closed' && lead.stage !== 'lost';
+    if (!open) return null;
+    if (fu && fu < todayStr) return { label: 'Overdue follow-up', tone: 'bg-rose-50 text-rose-700 border-rose-200' };
+    if (fu === todayStr) return { label: 'Aaj follow-up', tone: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
+    if (lead.stage === 'new' || lead.stage === 'contacted') return { label: 'Pehli call / follow-up set karo', tone: 'bg-sky-50 text-sky-700 border-sky-200' };
+    if (lead.stage === 'visit_scheduled') return { label: 'Site visit confirm karo', tone: 'bg-violet-50 text-violet-700 border-violet-200' };
+    return null;
+  };
 
   const filteredLeads = useMemo(() => {
     return leads.filter((lead) => {
@@ -308,7 +344,7 @@ export const LeadsDesk: React.FC<LeadsDeskProps> = ({
                 : 'text-slate-500 border-slate-200 bg-white'
             }`}
           >
-            Aaj
+            Aaj ({queueCounts.today})
           </button>
           <button
             type="button"
@@ -319,7 +355,7 @@ export const LeadsDesk: React.FC<LeadsDeskProps> = ({
                 : 'text-slate-500 border-slate-200 bg-white'
             }`}
           >
-            Overdue
+            Overdue ({queueCounts.overdue})
           </button>
           <button
             type="button"
@@ -330,7 +366,7 @@ export const LeadsDesk: React.FC<LeadsDeskProps> = ({
                 : 'text-slate-500 border-slate-200 bg-white'
             }`}
           >
-            🔥 Hot
+            🔥 Hot ({queueCounts.hot})
           </button>
 
           {/* Sales Team Picker - Exclusively Sagar Madhukar kamble for Resale Desk */}
@@ -343,8 +379,12 @@ export const LeadsDesk: React.FC<LeadsDeskProps> = ({
                 : 'text-slate-600 border-slate-200 bg-white'
             }`}
           >
-            <option value="All" className="text-slate-800 bg-white">Resale Desk (Sagar Sir · All 300+)</option>
-            <option value="Sagar Madhukar kamble" className="text-slate-800 bg-white">Sagar Madhukar kamble (Incharge)</option>
+            <option value="All" className="text-slate-800 bg-white">All agents</option>
+            {agentOptions.map((name) => (
+              <option key={name} value={name} className="text-slate-800 bg-white">
+                {name}
+              </option>
+            ))}
           </select>
 
           {activeFiltersCount > 0 && (
@@ -581,6 +621,16 @@ export const LeadsDesk: React.FC<LeadsDeskProps> = ({
                       </div>
                     </div>
 
+                    {(() => {
+                      const action = nextActionFor(lead);
+                      if (!action) return null;
+                      return (
+                        <div className={`relative z-10 inline-flex self-start items-center rounded-full border px-2 py-0.5 text-[10px] font-black ${action.tone}`}>
+                          {action.label}
+                        </div>
+                      );
+                    })()}
+
                     {/* Middle Body: Intent + Resale Tag + Location + Budget + Source */}
                     <div className="relative z-10 flex justify-between items-start gap-4">
                       <div className="min-w-0">
@@ -774,12 +824,10 @@ export const LeadsDesk: React.FC<LeadsDeskProps> = ({
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
-                              if (window.confirm(`Permanently remove lead "${lead.name}" (${lead.leadCode})? This action cannot be undone.`)) {
-                                onDeleteLead(lead.id);
-                              }
+                              setLeadToDelete(lead);
                             }}
-                            title="Delete Lead (Admin Only)"
-                            className="h-9 w-9 rounded-xl bg-rose-50 border border-rose-100 text-rose-500 hover:bg-rose-600 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+                            title="Delete Lead (Super Admin Action)"
+                            className="h-9 w-9 rounded-xl bg-rose-50 border border-rose-200 text-rose-600 hover:bg-rose-600 hover:text-white flex items-center justify-center transition-colors cursor-pointer shrink-0 shadow-2xs"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -871,7 +919,7 @@ export const LeadsDesk: React.FC<LeadsDeskProps> = ({
                         )}
                       </td>
                       <td className="px-4 py-3 text-slate-700 font-bold whitespace-nowrap">
-                        Sagar Madhukar kamble <span className="text-[9px] text-purple-600 font-black ml-1">(Incharge)</span>
+                        {lead.assignedTo || 'Unassigned'}
                       </td>
                       <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-1.5">
@@ -898,16 +946,16 @@ export const LeadsDesk: React.FC<LeadsDeskProps> = ({
                           >
                             <Sparkles className="w-3.5 h-3.5" />
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (window.confirm(`Remove lead ${lead.name}?`)) onDeleteLead(lead.id);
-                            }}
-                            className="p-1.5 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100"
-                            title="Delete"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                          {canUserDeleteLead(user) && (
+                            <button
+                              type="button"
+                              onClick={() => setLeadToDelete(lead)}
+                              className="p-1.5 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white transition-colors cursor-pointer border border-rose-200"
+                              title="Delete Lead (Super Admin Action)"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -920,12 +968,21 @@ export const LeadsDesk: React.FC<LeadsDeskProps> = ({
           {/* ── VIEW 3: KANBAN PIPELINE VIEW ── */}
           {viewMode === 'kanban' && (
             <div className="flex gap-3 overflow-x-auto pb-4">
-              {LEAD_STAGES.filter((s) => s.key !== 'lost').map((stageObj) => {
+              {LEAD_STAGES.map((stageObj) => {
                 const colLeads = filteredLeads.filter((l) => l.stage === stageObj.key);
                 return (
                   <div
                     key={stageObj.key}
-                    className="w-72 shrink-0 rounded-2xl bg-slate-100/80 border border-slate-200 flex flex-col max-h-[70vh]"
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      const id = e.dataTransfer.getData('text/lead-id') || dragLeadId;
+                      if (id) onUpdateLeadStage(id, stageObj.key);
+                      setDragLeadId(null);
+                    }}
+                    className={`w-72 shrink-0 rounded-2xl bg-slate-100/80 border flex flex-col max-h-[70vh] ${
+                      dragLeadId ? 'border-purple-300' : 'border-slate-200'
+                    }`}
                   >
                     <div className="p-3 border-b border-slate-200 flex items-center justify-between bg-white rounded-t-2xl">
                       <span className="text-xs font-black text-slate-800">{stageObj.label}</span>
@@ -933,19 +990,43 @@ export const LeadsDesk: React.FC<LeadsDeskProps> = ({
                         {colLeads.length}
                       </span>
                     </div>
-                    <div className="p-2.5 space-y-2 overflow-y-auto flex-1">
+                    <div className="p-2.5 space-y-2 overflow-y-auto flex-1 min-h-[88px]">
+                      {colLeads.length === 0 && (
+                        <p className="text-[10px] font-semibold text-slate-400 text-center py-6">Drop a lead here</p>
+                      )}
                       {colLeads.map((l) => (
                         <div
                           key={l.id}
+                          draggable
+                          onDragStart={(e) => {
+                            e.dataTransfer.setData('text/lead-id', l.id);
+                            e.dataTransfer.effectAllowed = 'move';
+                            setDragLeadId(l.id);
+                          }}
+                          onDragEnd={() => setDragLeadId(null)}
                           onClick={() => onViewLead(l)}
-                          className="p-3 rounded-xl bg-white border border-slate-200 hover:border-purple-300 shadow-sm cursor-pointer space-y-1.5"
+                          className="p-3 rounded-xl bg-white border border-slate-200 hover:border-purple-300 shadow-sm cursor-grab active:cursor-grabbing space-y-1.5"
                         >
                           <div className="flex items-center justify-between gap-1">
                             <LeadCodeBadge code={l.leadCode} />
                             <span className="text-[10px] font-black text-emerald-700">{l.budgetDisplay}</span>
                           </div>
                           <p className="text-xs font-black text-slate-800 truncate">{l.name}</p>
-                          <p className="text-[10px] text-slate-500 truncate">{l.preferredLocalities.join(', ')}</p>
+                          <p className="text-[10px] text-slate-500 truncate">{l.preferredLocalities.join(', ') || 'Nagpur'}</p>
+                          <div className="flex items-center justify-between pt-1">
+                            <span className="text-[10px] font-semibold text-slate-500">{l.phone}</span>
+                            <button
+                              type="button"
+                              title="WhatsApp in CRM"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onOpenWhatsAppChat?.(l);
+                              }}
+                              className="h-7 w-7 rounded-lg bg-green-50 text-green-600 hover:bg-green-600 hover:text-white flex items-center justify-center"
+                            >
+                              <MessageCircle className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -955,6 +1036,52 @@ export const LeadsDesk: React.FC<LeadsDeskProps> = ({
             </div>
           )}
         </>
+      )}
+
+      {/* In-CRM Delete Confirmation Modal (Guaranteed to work without browser popup blocker) */}
+      {leadToDelete && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in">
+          <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-slate-200 animate-in zoom-in-95">
+            <div className="flex items-center gap-3 text-rose-600 mb-3">
+              <div className="w-10 h-10 rounded-2xl bg-rose-50 flex items-center justify-center shrink-0 border border-rose-200">
+                <Trash2 className="w-5 h-5 text-rose-600" />
+              </div>
+              <div>
+                <h3 className="text-base font-black text-slate-900 leading-tight">Delete Lead Permanently</h3>
+                <p className="text-xs text-rose-600 font-bold uppercase tracking-wider">Super Admin / Management Action</p>
+              </div>
+            </div>
+            <p className="text-xs text-slate-600 mb-4 leading-relaxed">
+              Are you sure you want to delete lead <strong className="text-slate-900 font-black">{leadToDelete.name}</strong> (<span className="font-mono text-purple-700 font-bold">{leadToDelete.leadCode}</span>)? This will permanently remove the lead, their call logs, and WhatsApp interaction records from Supabase CRM database.
+            </p>
+            <div className="p-3 bg-slate-50 rounded-xl mb-4 text-xs space-y-1 text-slate-600 border border-slate-100">
+              <div><span className="font-bold text-slate-700">Phone:</span> {leadToDelete.phone}</div>
+              <div><span className="font-bold text-slate-700">Assigned to:</span> {leadToDelete.assignedTo || 'Sagar Madhukar kamble'}</div>
+              <div><span className="font-bold text-slate-700">Looking for:</span> {leadToDelete.intent} ({leadToDelete.preferredLocalities?.join(', ') || 'Nagpur'})</div>
+            </div>
+            <div className="flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setLeadToDelete(null)}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-slate-700 font-bold text-xs hover:bg-slate-50 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const id = leadToDelete.id;
+                  setLeadToDelete(null);
+                  onDeleteLead(id);
+                }}
+                className="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-md shadow-rose-600/20 cursor-pointer flex items-center gap-1.5"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>Yes, Delete Lead</span>
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Permission Restriction Toast Banner */}
